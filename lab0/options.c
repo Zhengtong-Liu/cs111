@@ -21,10 +21,6 @@ void read_options(
     opts -> input = NULL;
     opts -> output = NULL;
 
-    if (argc == 1){
-        opts -> valid = false;
-        return;
-    }
     int opt = 0;
     static struct option long_options[] = {
         {"input", required_argument, 0, 'i'},

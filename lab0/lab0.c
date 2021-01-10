@@ -29,7 +29,7 @@ main (int argc, char **argv)
 
     if(!options.valid){
         fprintf(stderr, "%s: Incorrect usage\n", argv[0]);
-        fprintf(stderr, "usage: [--input=filename --output=filename --segfault --catch]\n");
+        fprintf(stderr, "usage: ./lab0 [--input=filename --output=filename --segfault --catch]\n");
         exit(1);
     }
 
@@ -37,7 +37,7 @@ main (int argc, char **argv)
         int ifd;
         if ((ifd = open(options.input, O_RDONLY)) < 0)
         {
-            fprintf(stderr, "--input option\n");
+            fprintf(stderr, "--input option: ");
             fprintf(stderr, "%s: %s\n", options.input, strerror(errno));
             exit(2);
         }
@@ -51,7 +51,7 @@ main (int argc, char **argv)
         int ofd;
         if((ofd = creat(options.output, 0666)) < 0)
         {
-            fprintf(stderr, "--output option\n");
+            fprintf(stderr, "--output option: ");
             fprintf(stderr, "%s: %s\n", options.output, strerror(errno));
             exit(3);
         }

@@ -10,6 +10,6 @@ lab0: *.c
 clean:
 	rm -f *.o *.txz lab0
 
-check:
-	
+check: script.sh
+	./script.sh 505375562
 dist: 
