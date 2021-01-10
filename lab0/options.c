@@ -46,7 +46,7 @@ void read_options(
                 opts -> segfault = true;
                 break;
             case 'c':
-                opts -> catch_flag = false;
+                opts -> catch_flag = true;
                 break;
             default:
                 flag = false;
