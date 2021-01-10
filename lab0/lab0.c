@@ -9,8 +9,11 @@
 #include "./options.h"
 
 void sigsegv_handler (int sig) {
+    if (sig == SIGSEGV) 
+    {
         fprintf(stderr, "a segmentation fault has bee detected.\n");
         exit(4);
+    }
 }
 
 int
@@ -52,7 +55,6 @@ main (int argc, char **argv)
 
     if(options.segfault) {
         char* ptr = NULL;
-        signal(SIGSEGV, sigsegv_handler);
         (*ptr) = 0;
     }
 
