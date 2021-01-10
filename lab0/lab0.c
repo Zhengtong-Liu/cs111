@@ -1,3 +1,7 @@
+// NAME: Zhengtong Liu
+// EMAIL: ericliu2023@g.ucla.edu
+// ID: 505375562
+
 #include <errno.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -5,6 +9,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <string.h>
 
 #include "./options.h"
 
@@ -29,27 +34,34 @@ main (int argc, char **argv)
     }
 
     if(options.input) {
-        int ifd = open(options.input, O_RDONLY);
-        printf("the file is %s, fd is %d\n", options.input, ifd);
-        if(ifd >= 0) {
-            close(0);
-            dup(ifd);
-            close(ifd);
+        int ifd;
+        if ((ifd = open(options.input, O_RDONLY)) < 0)
+        {
+            fprintf(stderr, "--input option\n");
+            fprintf(stderr, "%s: %s\n", options.input, strerror(errno));
+            exit(2);
         }
+
+        close(0);
+        dup(ifd);
+        close(ifd);
     }
 
     if(options.output) {
-        int ofd = creat(options.output, 0666); //create or open
-        printf("the file is %s, fd is %d\n", options.input, ofd);
-        if (ofd >= 0) {
-            close(1);
-            dup(ofd);
-            close(ofd);
+        int ofd;
+        if((ofd = creat(options.output, 0666)) < 0)
+        {
+            fprintf(stderr, "--output option\n");
+            fprintf(stderr, "%s: %s\n", options.output, strerror(errno));
+            exit(3);
         }
+
+        close(1);
+        dup(ofd);
+        close(ofd);
     }
 
     if(options.catch_flag) {
-        printf("signal to detect segfault has been registered");
         signal(SIGSEGV, sigsegv_handler);
     }
 
@@ -66,8 +78,6 @@ main (int argc, char **argv)
         else
             break;
     }
+    exit(0);
 
-
-    printf ("the input file is %s \n", options.input);
-    printf ("the output file is %s \n", options.output);
 }

@@ -1,3 +1,7 @@
+// NAME: Zhengtong Liu
+// EMAIL: ericliu2023@g.ucla.edu
+// ID: 505375562
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
