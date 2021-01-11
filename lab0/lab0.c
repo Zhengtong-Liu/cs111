@@ -13,6 +13,9 @@
 
 #include "./options.h"
 
+#define BUFFERSIZE 1024
+char buffer[BUFFERSIZE];
+
 void sigsegv_handler (int sig) {
     if (sig == SIGSEGV) 
     {
@@ -70,14 +73,20 @@ main (int argc, char **argv)
         (*ptr) = 0;
     }
 
-    char buffer;
-    while (read(0, &buffer, 1) > 0)
-    {
-        if(buffer != 0)
-            write(1, &buffer, 1);
-        else
-            break;
-    }
+    int ret;
+    while ((ret = read(0, buffer, BUFFERSIZE)) > 0)
+        write(1, buffer, BUFFERSIZE);
+    // char buffer;
+    // while (read(0, &buffer, 1) > 0)
+    // {
+    //     if(buffer != 0)
+    //         write(1, &buffer, 1);
+    //     else
+    //         break;
+    // }
+    close(0);
+    close(1);
+    
     exit(0);
 
 }
