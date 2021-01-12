@@ -62,7 +62,7 @@ echo '... check for the segfault option'
 ./lab0 --segfault --catch 2>STDERR
 if [ $? -eq 4 ]
 then
-	echo "Sucess: catch the segfault: $STDERR"
+	echo "Sucess: catch the segfault"
 else
 	echo "Error: should cause and catch the segfault with exit code 4"
 fi
