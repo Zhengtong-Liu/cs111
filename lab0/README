@@ -1,3 +1,71 @@
 NAME: Zhengtong Liu
 EMAIL: ericliu2023@g.ucla.edu
 ID: 505375562
+
+lab0.c:
+    A C source code file that implements the program in lab0 spec.
+    Specifically, the program copies its standard input to its 
+    standard output. The normal exit code is 0.
+
+
+    Several optional options when execute this program using command 
+    line argument:
+
+    --input=filename ... use the specific file as stdin
+    If unable to open the input file, exit with return code of 2.
+
+    --output=filename ... create the specific file and use it as stdout
+    If unable to create the output file or cannot open the output file,
+    exit with return code of 3.
+
+    --segfault ... force a segmentation fault.
+
+    --catch ... catch the segmentation fault and log an error message.
+    Exit with a return code of 4 if a segmentation fault is caught.
+
+Makefile:
+    my Makefile supports the following targets:
+
+    default ... the same as lab0.
+
+    lab0 ... compile the program  with the -Wall and -Wextra options, 
+    also with -Og for optimization and -g3 for gdb debug.
+
+    clean ... delete all files created by the Makefile, e.g.
+    lab0 executable, .o files, .tar.gz tarball, etc.
+
+    check ... runs a smoke-test on whether the basic requirements
+    are met or not and reports success or failure.
+
+    dist ... build the tarball to be submitted.
+
+backtrace.png:
+    showing a segfault and associated stack-trace
+
+breakpoint.png:
+    showing a breakpoint and variable inspection
+
+script.sh:
+    the bash file that includes the smoke tests,
+    test cases are to:
+
+        (1) check for invalid arguments and inspect
+    the exit code.
+
+        (2) check for the default option, i.e. copy
+    from stdin to stdout and inspect the exit code.
+
+        (3) check for the input and output options,
+    i.e. invoke the --input and --output options, 
+    compare the contents of input and output and 
+    see whether the program is exited normally.
+
+        (4) check for the segfault and catch options,
+    i.e. invoke the --segfault and --catch options,
+    and inspect the exit code.
+
+        (5) check for two other exit codes: 2 and 3,
+    give the --input option an filename that does not
+    exist, inspect the exit code. Close the write permission
+    of the output file, which is the argument for --output,
+    inspect the exit code.

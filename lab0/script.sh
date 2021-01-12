@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# NAME: Zhengtong Liu
+# EMAIL: ericliu2023@g.ucla.edu
+# ID: 505375562
+
 # check for invalid arguments
 echo '... check for invalid arguments'
 ./lab0 --verbose > /dev/null 2>STDERR
@@ -59,7 +63,7 @@ echo ''
 
 # check for the segfault and catch options
 echo '... check for the segfault option'
-./lab0 --segfault --catch 2>STDERR
+./lab0 --segfault --catch 
 if [ $? -eq 4 ]
 then
 	echo "Success: catch the segfault and exit code is 4"
@@ -70,7 +74,7 @@ echo ''
 
 # check for two other exit codes: 2 and 3
 echo '... check for two other exit codes: 2 and 3'
-./lab0 --input=hello --output=output 2> /dev/null
+./lab0 --input=hello --output=output
 if [ $? -eq 2 ]
 then
 	echo "Success: unable to open the input file and exit code is 2"
