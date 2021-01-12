@@ -61,6 +61,17 @@ else
 fi
 echo ''
 
+# check for the segault option separately
+echo '... check for the segault option separately'
+./lab0 --segfault
+if [ $? -eq 139 ]
+then
+	echo "Success: a segmentation fault is forced"
+else
+	echo "Error: should force a segmentation fault"
+fi
+echo ''
+
 # check for the segfault and catch options
 echo '... check for the segfault option'
 ./lab0 --segfault --catch 
