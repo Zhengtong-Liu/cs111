@@ -11,7 +11,7 @@ clean:
 	rm -rf *.o *.tar.gz lab0 *.dSYM
 
 check: script.sh
-	./script.sh 505375562
+	./script.sh
 
 submission-files = lab0.c backtrace.png breakpoint.png README Makefile script.sh
 

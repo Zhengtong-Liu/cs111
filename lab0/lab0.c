@@ -12,8 +12,6 @@
 #include <string.h>
 #include <getopt.h>
 
-#define BUFFERSIZE 1024
-char buffer[BUFFERSIZE];
 
 struct opts {
     bool valid;
@@ -133,9 +131,9 @@ main (int argc, char **argv)
         (*ptr) = 0;
     }
 
-    int ret;
-    while ((ret = read(0, buffer, BUFFERSIZE)) > 0)
-        write(1, buffer, BUFFERSIZE);
+    char c;
+    while ((read(0, &c, sizeof(char))) > 0)
+        write(1, &c, sizeof(char));
     // char buffer;
     // while (read(0, &buffer, 1) > 0)
     // {
