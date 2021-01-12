@@ -73,7 +73,7 @@ fi
 echo ''
 
 # check for the segfault and catch options
-echo '... check for the segfault option'
+echo '... check for the segfault and catch options'
 ./lab0 --segfault --catch 
 if [ $? -eq 4 ]
 then

@@ -60,11 +60,14 @@ script.sh:
     compare the contents of input and output and 
     see whether the program is exited normally.
 
-        (4) check for the segfault and catch options,
+        (4) check for the segfault option separately,
+    and inspect the exit code.
+
+        (5) check for the segfault and catch options,
     i.e. invoke the --segfault and --catch options,
     and inspect the exit code.
 
-        (5) check for two other exit codes: 2 and 3,
+        (6) check for two other exit codes: 2 and 3,
     give the --input option an filename that does not
     exist, inspect the exit code. Close the write permission
     of the output file, which is the argument for --output,
