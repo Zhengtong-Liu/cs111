@@ -13,7 +13,7 @@ clean:
 check: script.sh
 	./script.sh 505375562
 
-submission-files = lab0.c options.c options.h backtrace.png breakpoint.png README Makefile script.sh
+submission-files = lab0.c backtrace.png breakpoint.png README Makefile script.sh
 
 lab0-505375562.tar.gz: $(submission-files)
 	tar -czvf $@ $(submission-files)
