@@ -8,7 +8,7 @@ lab0: lab0.c
 	gcc -Og -g3 -Wall -Wextra lab0.c -o $@
 
 clean:
-	rm -f *.o *.tar.gz lab0
+	rm -rf *.o *.tar.gz lab0 *.dSYM
 
 check: script.sh
 	./script.sh 505375562
