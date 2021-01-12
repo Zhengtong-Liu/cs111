@@ -41,14 +41,14 @@ echo ''
 
 # check for the input and output options
 echo '... check for the input and output options'
-./lab0 --input=input --output=output2
+./lab0 --input=input --output=output1
 if [ $? -eq 0 ]
 then
 	echo "Sucess: exit code for copying sucessfully is 0"
 else
 	echo "Error: exit code for copying sucessfully should be 0"
 fi
-cmp input output2
+cmp input output1
 if [ $? -eq 0 ]
 then
 	echo "Success: copied input to output"
@@ -62,10 +62,30 @@ echo '... check for the segfault option'
 ./lab0 --segfault --catch 2>STDERR
 if [ $? -eq 4 ]
 then
-	echo "Sucess: catch the segfault"
+	echo "Success: catch the segfault and exit code is 4"
 else
 	echo "Error: should cause and catch the segfault with exit code 4"
 fi
 echo ''
 
-rm STDERR input output output2
+# check for two other exit codes: 2 and 3
+echo '... check for two other exit codes: 2 and 3'
+./lab0 --input=hello --output=output 2> /dev/null
+if [ $? -eq 2 ]
+then
+	echo "Success: unable to open the input file and exit code is 2"
+else
+	echo "Error: exit code should be 2 when unable to open the input file"
+fi
+touch output2
+chmod -w output2
+./lab0 --input=input --output=output2
+if [ $? -eq 3 ]
+then
+	echo "Success: unable to open the output file and exit code is 3"
+else
+	echo "Error: exit code should be 3 when unable to open the output file"
+fi
+echo ''
+
+rm -rf STDERR input output output1 output2
