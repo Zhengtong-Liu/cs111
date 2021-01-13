@@ -11,6 +11,8 @@
 #include <signal.h>
 #include <string.h>
 #include <getopt.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 
 struct opts {
