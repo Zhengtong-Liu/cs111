@@ -20,6 +20,7 @@ struct termios tattr;
 int pid;
 int to_shell[2];
 int to_terminal[2];
+bool to_shell_close = false;
 
 void restore_and_exit (int exit_status)
 {
@@ -114,18 +115,19 @@ void sigpipe_handler (int sig)
     if (sig == SIGPIPE)
     {
         fprintf(stderr, "SIGPIPE signal has been received.\n");
-        if (close(to_shell[1]) < 0) {
-            fprintf(stderr, "close error: %s\n", strerror(errno));
-            restore_and_exit(1);
+        if (!to_shell_close)
+        {
+            if (close(to_shell[1]) < 0) {
+                fprintf(stderr, "close error: %s\n", strerror(errno));
+                restore_and_exit(1);
+            }
+            to_shell_close = true;
         }
         if (close(to_terminal[0]) < 0) {
             fprintf(stderr, "close error: %s\n", strerror(errno));
             restore_and_exit(1);
         }
-        if (kill(pid, SIGINT) < 0) {
-            fprintf(stderr, "kill error: %s\n", strerror(errno));
-            restore_and_exit(1);
-        }
+
         shut_down();
     }
 }
@@ -211,6 +213,10 @@ main(int argc, char **argv)
                 fprintf(stderr, "execlp error: %s\n", strerror(errno));
                 restore_and_exit(1);
             }
+            fprintf(stderr, 
+                    "should not get here, error when executing the child process: %s\n", 
+                    strerror(errno));
+            restore_and_exit(1);
         }
         else
         {
@@ -250,26 +256,33 @@ main(int argc, char **argv)
                     {
                         if (c[k] == 0x04)
                         {
-                            if (write(1, "^D", 3) < 0) {
+                            if (write(1, "^D", 2) < 0) {
                                 fprintf(stderr, "write error: %s\n", strerror(errno));
                                 restore_and_exit(1);
+                            }
+                            if (! to_shell_close) {
+                                if (close(to_shell[1]) < 0) {
+                                        fprintf(stderr, "close error: %s\n", strerror(errno));
+                                        restore_and_exit(1);
+                                    }
+                                to_shell_close = true;
                             }
                             shut_down_flag = true;
                         }
                         else if (c[k] == '\r' || c[k] == '\n')
                         {
-                            if (write(1, "\r\n", 3) < 0) {
+                            if (write(1, "\r\n", 2) < 0) {
                                 fprintf(stderr, "write error: %s\n", strerror(errno));
                                 restore_and_exit(1);
                             }
-                            if (write(to_shell[1], "\n", 2) < 0) {
+                            if (write(to_shell[1], "\n", 1) < 0) {
                                 fprintf(stderr, "write error: %s\n", strerror(errno));
                                 restore_and_exit(1);
                             }
                         }
                         else if (c[k] == 0x03)
                         {
-                            if (write(1, "^C", 3) < 0) {
+                            if (write(1, "^C", 2) < 0) {
                                 fprintf(stderr, "write error: %s\n", strerror(errno));
                                 restore_and_exit(1);
                             }
@@ -304,10 +317,18 @@ main(int argc, char **argv)
                     {
                         if (c[k] == '\n')
                         {
-                            if (write(1, "\r\n", 3) < 0) {
+                            if (write(1, "\r\n", 2) < 0) {
                                 fprintf(stderr, "write error: %s\n", strerror(errno));
                                 restore_and_exit(1);
                             }
+                        }
+                        else if (c[k] == 0x04)
+                        {
+                            if (write(1, "^D", 2) < 0) {
+                                fprintf(stderr, "write error: %s\n", strerror(errno));
+                                restore_and_exit(1);
+                            }
+                            shut_down_flag = true;
                         }
                         else
                         {
@@ -322,11 +343,14 @@ main(int argc, char **argv)
                 if (pollfds[0].revents & (POLLHUP | POLLERR))
                     shut_down_flag = true;
             }
-
-            if (close(to_shell[1]) < 0) {
-                fprintf(stderr, "close error: %s\n", strerror(errno));
-                restore_and_exit(1);
+            if (! to_shell_close) {
+                if (close(to_shell[1]) < 0) {
+                    fprintf(stderr, "close error: %s\n", strerror(errno));
+                    restore_and_exit(1);
+                }
+                to_shell_close = true;
             }
+            
             if (close(to_terminal[0]) < 0) {
                 fprintf(stderr, "close error: %s\n", strerror(errno));
                 restore_and_exit(1);
@@ -348,7 +372,7 @@ main(int argc, char **argv)
             {
                 if (c[k] == 0x4)
                 {
-                    if (write(1, "^D", 3) < 0) {
+                    if (write(1, "^D", 2) < 0) {
                         fprintf(stderr, "write error: %s\n", strerror(errno));
                         restore_and_exit(1);
                     }
@@ -356,14 +380,14 @@ main(int argc, char **argv)
                 }
                 else if (c[k] == '\r' || c[k] == '\n')
                 {
-                    if (write(1, "\r\n", 3) < 0) {
+                    if (write(1, "\r\n", 2) < 0) {
                         fprintf(stderr, "write error: %s\n", strerror(errno));
                         restore_and_exit(1);
                     }
                 }    
                 else if (c[k] == 0x03)
                 {
-                    if (write(1, "^C", 3) < 0) {
+                    if (write(1, "^C", 2) < 0) {
                         fprintf(stderr, "write error: %s\n", strerror(errno));
                         restore_and_exit(1);
                     }
