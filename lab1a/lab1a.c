@@ -155,12 +155,12 @@ main(int argc, char **argv)
             restore_and_exit(1);
         }
 
-
-        if (signal(SIGPIPE, sigpipe_handler) < 0)
-        {
-            fprintf(stderr, "signal error: %s\n", strerror(errno));
-            restore_and_exit(1);
-        }
+        signal(SIGPIPE, sigpipe_handler);
+        // if (signal(SIGPIPE, sigpipe_handler) < 0)
+        // {
+        //     fprintf(stderr, "signal error: %s\n", strerror(errno));
+        //     restore_and_exit(1);
+        // }
 
         int pid = fork();
         if (pid < 0)
