@@ -26,7 +26,7 @@ void restore_and_exit (int exit_status)
 {
     if (tcsetattr(0, TCSANOW, &tattr) != 0)
     {
-        fprintf(stderr, "tcsetattr error: %s\n", strerror(errno));
+        fprintf(stderr, "tcsetattr error(restore time): %s\n", strerror(errno));
         exit(1);
     }
     exit(exit_status);
@@ -42,21 +42,21 @@ void terminal_setup ()
 
     if (tcgetattr(0, &tattr) != 0)
     {
-        fprintf(stderr, "tcgetattr error: %s\n", strerror(errno));
+        fprintf(stderr, "tcgetattr(1st time) error: %s\n", strerror(errno));
         exit(1);
     }
 
     struct termios temp;
     if (tcgetattr(0, &temp) != 0)
     {
-        fprintf(stderr, "tcgetattr error: %s\n", strerror(errno));
+        fprintf(stderr, "tcgetattr(2nd time) error: %s\n", strerror(errno));
         exit(1);
     }
 
     temp.c_iflag = ISTRIP; temp.c_oflag = 0; temp.c_lflag = 0;
     if (tcsetattr(0, TCSANOW, &temp) != 0)
     {
-        fprintf(stderr, "tcsetattr error: %s\n", strerror(errno));
+        fprintf(stderr, "tcsetattr error(set time): %s\n", strerror(errno));
         exit(1);
     }
 }
@@ -118,13 +118,13 @@ void sigpipe_handler (int sig)
         if (!to_shell_close)
         {
             if (close(to_shell[1]) < 0) {
-                fprintf(stderr, "close error: %s\n", strerror(errno));
+                fprintf(stderr, "close error when closing to_shell[1]: %s\n", strerror(errno));
                 restore_and_exit(1);
             }
             to_shell_close = true;
         }
         if (close(to_terminal[0]) < 0) {
-            fprintf(stderr, "close error: %s\n", strerror(errno));
+            fprintf(stderr, "close error when closing to_terminal[0]: %s\n", strerror(errno));
             restore_and_exit(1);
         }
 
@@ -146,12 +146,12 @@ main(int argc, char **argv)
     {
         if (pipe(to_shell) < 0)
         {
-            fprintf(stderr, "pipe error: %s\n", strerror(errno));
+            fprintf(stderr, "pipe error(1st pipe): %s\n", strerror(errno));
             restore_and_exit(1);
         }
         if (pipe(to_terminal) < 0)
         {
-            fprintf(stderr, "pipe error: %s\n", strerror(errno));
+            fprintf(stderr, "pipe error(2nd pipe): %s\n", strerror(errno));
             restore_and_exit(1);
         }
 
@@ -173,43 +173,43 @@ main(int argc, char **argv)
 
             // redirect stdin to the output from terminal
             if (close(to_shell[1]) < 0) {
-                fprintf(stderr, "close error: %s\n", strerror(errno));
+                fprintf(stderr, "close error when closing to_shell[1]: %s\n", strerror(errno));
                 restore_and_exit(1);
             }
             if (close(0) < 0) {
-                fprintf(stderr, "close error: %s\n", strerror(errno));
+                fprintf(stderr, "close error when closing stdin: %s\n", strerror(errno));
                 restore_and_exit(1);
             }
             if (dup(to_shell[0]) < 0) {
-                fprintf(stderr, "dup error: %s\n", strerror(errno));
+                fprintf(stderr, "dup error when dup to_shell[0]: %s\n", strerror(errno));
                 restore_and_exit(1);
             }
             if (close(to_shell[0]) < 0) {
-                fprintf(stderr, "close error: %s\n", strerror(errno));
+                fprintf(stderr, "close error when closing to_shell[0]: %s\n", strerror(errno));
                 restore_and_exit(1);
             }
 
             if (close(to_terminal[0]) < 0) {
-                fprintf(stderr, "close error: %s\n", strerror(errno));
+                fprintf(stderr, "close error when closing to_terminal[0]: %s\n", strerror(errno));
                 restore_and_exit(1);
             }
 
             if (dup2(to_terminal[1], 1) < 0) {
-                fprintf(stderr, "dup2 error: %s\n", strerror(errno));
+                fprintf(stderr, "dup2 error when dup2 stdout to to_terminal[1]: %s\n", strerror(errno));
                 restore_and_exit(1);
             }
             if (dup2(to_terminal[1], 2) < 0) {
-                fprintf(stderr, "dup2 error: %s\n", strerror(errno));
+                fprintf(stderr, "dup2 error when dup2 stderr to to_terminal[1]: %s\n", strerror(errno));
                 restore_and_exit(1);
             }
 
             if (close(to_terminal[1]) < 0) {
-                fprintf(stderr, "close error: %s\n", strerror(errno));
+                fprintf(stderr, "close error when closing to_terminal[1]: %s\n", strerror(errno));
                 restore_and_exit(1);
             }
             // write stdout/stderr to to_terminal[1]
             if (execlp("/bin/bash", "bash", NULL) < 0) {
-                fprintf(stderr, "execlp error: %s\n", strerror(errno));
+                fprintf(stderr, "execlp error when execlp /bin/bash: %s\n", strerror(errno));
                 restore_and_exit(1);
             }
             fprintf(stderr, 
@@ -221,11 +221,11 @@ main(int argc, char **argv)
         {
             // parent process
             if (close(to_shell[0]) < 0) {
-                fprintf(stderr, "close error: %s\n", strerror(errno));
+                fprintf(stderr, "close error when closing to_shell[0]: %s\n", strerror(errno));
                 restore_and_exit(1);
             }
             if (close(to_terminal[1]) < 0) {
-                fprintf(stderr, "close error: %s\n", strerror(errno));
+                fprintf(stderr, "close error when closing to_terminal[1]: %s\n", strerror(errno));
                 restore_and_exit(1);
             }
 
@@ -248,7 +248,7 @@ main(int argc, char **argv)
                     char c[read_size];
                     int count = read(0, c, sizeof(c));
                     if (count < 0) {
-                        fprintf(stderr, "read error: %s\n", strerror(errno));
+                        fprintf(stderr, "read error from stdin in --shell option: %s\n", strerror(errno));
                         restore_and_exit(1);
                     }
                     for(int k = 0; k < count; k++)
@@ -256,12 +256,12 @@ main(int argc, char **argv)
                         if (c[k] == 0x04)
                         {
                             if (write(1, "^D", 2) < 0) {
-                                fprintf(stderr, "write error: %s\n", strerror(errno));
+                                fprintf(stderr, "write error when writing ^D: %s\n", strerror(errno));
                                 restore_and_exit(1);
                             }
                             if (! to_shell_close) {
                                 if (close(to_shell[1]) < 0) {
-                                        fprintf(stderr, "close error: %s\n", strerror(errno));
+                                        fprintf(stderr, "close error when closing to_shell[1]: %s\n", strerror(errno));
                                         restore_and_exit(1);
                                     }
                                 to_shell_close = true;
@@ -271,33 +271,33 @@ main(int argc, char **argv)
                         else if (c[k] == '\r' || c[k] == '\n')
                         {
                             if (write(1, "\r\n", 2) < 0) {
-                                fprintf(stderr, "write error: %s\n", strerror(errno));
+                                fprintf(stderr, "write error when writing cr lf to stdout: %s\n", strerror(errno));
                                 restore_and_exit(1);
                             }
                             if (write(to_shell[1], "\n", 1) < 0) {
-                                fprintf(stderr, "write error: %s\n", strerror(errno));
+                                fprintf(stderr, "write error when writing lf to to_shell[1]: %s\n", strerror(errno));
                                 restore_and_exit(1);
                             }
                         }
                         else if (c[k] == 0x03)
                         {
                             if (write(1, "^C", 2) < 0) {
-                                fprintf(stderr, "write error: %s\n", strerror(errno));
+                                fprintf(stderr, "write error when writing ^C to stdout: %s\n", strerror(errno));
                                 restore_and_exit(1);
                             }
                             if (kill(pid, SIGINT) < 0) {
-                                fprintf(stderr, "kill error: %s\n", strerror(errno));
+                                fprintf(stderr, "kill error when sending SIGINT to shell: %s\n", strerror(errno));
                                 restore_and_exit(1);
                             }
                         }
                         else
                         {
                             if (write(1, &c[k], 1) < 0) {
-                                fprintf(stderr, "write error: %s\n", strerror(errno));
+                                fprintf(stderr, "write error when writing to stdout: %s\n", strerror(errno));
                                 restore_and_exit(1);
                             }
                             if (write(to_shell[1], &c[k], 1) < 0) {
-                                fprintf(stderr, "write error: %s\n", strerror(errno));
+                                fprintf(stderr, "write error when writing to shell: %s\n", strerror(errno));
                                 restore_and_exit(1);
                             }
                         }
@@ -309,7 +309,7 @@ main(int argc, char **argv)
                     char c[read_size];
                     int count = read(to_terminal[0], c, sizeof(c));
                     if (count < 0) {
-                        fprintf(stderr, "read error: %s\n", strerror(errno));
+                        fprintf(stderr, "read error when reading from shell: %s\n", strerror(errno));
                         restore_and_exit(1);
                     }
                     for (int k = 0; k < count; k++)
@@ -317,14 +317,14 @@ main(int argc, char **argv)
                         if (c[k] == '\n')
                         {
                             if (write(1, "\r\n", 2) < 0) {
-                                fprintf(stderr, "write error: %s\n", strerror(errno));
+                                fprintf(stderr, "write error when writing cr lf to stdout: %s\n", strerror(errno));
                                 restore_and_exit(1);
                             }
                         }
                         else if (c[k] == 0x04)
                         {
                             if (write(1, "^D", 2) < 0) {
-                                fprintf(stderr, "write error: %s\n", strerror(errno));
+                                fprintf(stderr, "write error when writing ^D to sdtout: %s\n", strerror(errno));
                                 restore_and_exit(1);
                             }
                             shut_down_flag = true;
@@ -332,27 +332,27 @@ main(int argc, char **argv)
                         else
                         {
                             if (write(1, &c[k], 1) < 0) {
-                                fprintf(stderr, "write error: %s\n", strerror(errno));
+                                fprintf(stderr, "write error when writing to stdout: %s\n", strerror(errno));
                                 restore_and_exit(1);
                             }
                         }
                         
                     }
                 }
-                if( (pollfds[0].revents & (POLLHUP | POLLERR)) || 
+                if( (pollfds[0].revents &  (POLLHUP | POLLERR) ) || 
                         (pollfds[1].revents & (POLLHUP | POLLERR)) )
                     shut_down_flag = true;
             }
             if (! to_shell_close) {
                 if (close(to_shell[1]) < 0) {
-                    fprintf(stderr, "close error: %s\n", strerror(errno));
+                    fprintf(stderr, "close error when closing to_shell[1]: %s\n", strerror(errno));
                     restore_and_exit(1);
                 }
                 to_shell_close = true;
             }
             
             if (close(to_terminal[0]) < 0) {
-                fprintf(stderr, "close error: %s\n", strerror(errno));
+                fprintf(stderr, "close error when closing to_terminal[0]: %s\n", strerror(errno));
                 restore_and_exit(1);
             }
             shut_down();
@@ -365,7 +365,7 @@ main(int argc, char **argv)
             char c[read_size];
             int count = read(0, c, sizeof(c));
             if (count < 0) {
-                fprintf(stderr, "read error: %s\n", strerror(errno));
+                fprintf(stderr, "read error in the default option: %s\n", strerror(errno));
                 restore_and_exit(1);
             }
             for(int k = 0; k < count; k++)
@@ -373,7 +373,7 @@ main(int argc, char **argv)
                 if (c[k] == 0x4)
                 {
                     if (write(1, "^D", 2) < 0) {
-                        fprintf(stderr, "write error: %s\n", strerror(errno));
+                        fprintf(stderr, "write error when writing ^D to stdout: %s\n", strerror(errno));
                         restore_and_exit(1);
                     }
                     restore_and_exit(0);
@@ -381,14 +381,14 @@ main(int argc, char **argv)
                 else if (c[k] == '\r' || c[k] == '\n')
                 {
                     if (write(1, "\r\n", 2) < 0) {
-                        fprintf(stderr, "write error: %s\n", strerror(errno));
+                        fprintf(stderr, "write error when writing cr lf to stdout: %s\n", strerror(errno));
                         restore_and_exit(1);
                     }
                 }    
                 else if (c[k] == 0x03)
                 {
                     if (write(1, "^C", 2) < 0) {
-                        fprintf(stderr, "write error: %s\n", strerror(errno));
+                        fprintf(stderr, "write error when writing to stdout: %s\n", strerror(errno));
                         restore_and_exit(1);
                     }
                 }   
