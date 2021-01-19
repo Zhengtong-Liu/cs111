@@ -155,7 +155,6 @@ main(int argc, char **argv)
             restore_and_exit(1);
         }
 
-        // signal(SIGPIPE, sigpipe_handler);
         if (signal(SIGPIPE, sigpipe_handler) == SIG_ERR)
         {
             fprintf(stderr, "signal error: %s\n", strerror(errno));
@@ -340,7 +339,8 @@ main(int argc, char **argv)
                         
                     }
                 }
-                if (pollfds[0].revents & (POLLHUP | POLLERR))
+                if( (pollfds[0].revents & (POLLHUP | POLLERR)) || 
+                        (pollfds[1].revents & (POLLHUP | POLLERR)) )
                     shut_down_flag = true;
             }
             if (! to_shell_close) {
