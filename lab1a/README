@@ -1,3 +1,31 @@
 NAME: Zhengtong Liu
 EMAIL: ericliu2023@g.ucla.edu
 ID: 505375562
+
+lab1a.c 
+    the source module
+    the program is implemented to have two modes:
+        the default mode, where the keyboard is set into character-at-a-time,
+    no-echo mode, and the input is manually processed before displaying it on
+    the terminal;
+        the --shell option mode, where the input from keyboard is sent both to
+    the terminal to display to the user, and to shell to execute. The stdout
+    and stderr from shell is also displayed to the user through terminal. This
+    option employs the fork function to create two processes and APIs like pipe
+    to enable inter-process communication.
+
+Makefile
+    the targets in the Makefile includes
+        default(the same as lab1a)
+        lab1a:
+            compile the program with -Wall and -Wextra program,
+            produce the lab1a executable
+        clean:
+            clean the files created be Makefile
+        dist:
+            create the tarball to be submitted
+
+
+To test my source code, I ran the sanity check and tried several inputs myself. The error
+information written in a meaningful way when a system call fails also helps me to test and
+debug my program. 
