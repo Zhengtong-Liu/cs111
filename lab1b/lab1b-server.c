@@ -7,67 +7,307 @@
 #include <stdbool.h>
 #include <termios.h>
 #include <unistd.h>
-#include <sys/types.h>
 #include <getopt.h>
-#include <sys/wait.h>
-#include <fcntl.h>
 #include <poll.h>
 #include <signal.h>
 #include <errno.h>
 #include <string.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/wait.h>
+#include <netinet/in.h>
+#include <netdb.h>
 
 struct termios tattr;
-int pid;
+int pid, socket_fd;
 int to_shell[2];
-int to_terminal[2];
+int from_shell[2];
 bool to_shell_close = false;
-
-void restore_and_exit (int exit_status)
-{
-    if (tcsetattr(0, TCSANOW, &tattr) != 0)
-    {
-        fprintf(stderr, "tcsetattr error(restore time): %s\n", strerror(errno));
-        exit(1);
-    }
-    exit(exit_status);
-}
-
-void terminal_setup ()
-{
-    if (! isatty(0))
-    {
-        fprintf(stderr, "File descriptor 0 is not for terminal");
-        exit(1);
-    }
-
-    if (tcgetattr(0, &tattr) != 0)
-    {
-        fprintf(stderr, "tcgetattr(1st time) error: %s\n", strerror(errno));
-        exit(1);
-    }
-
-    struct termios temp;
-    if (tcgetattr(0, &temp) != 0)
-    {
-        fprintf(stderr, "tcgetattr(2nd time) error: %s\n", strerror(errno));
-        exit(1);
-    }
-
-    temp.c_iflag = ISTRIP; temp.c_oflag = 0; temp.c_lflag = 0;
-    if (tcsetattr(0, TCSANOW, &temp) != 0)
-    {
-        fprintf(stderr, "tcsetattr error(set time): %s\n", strerror(errno));
-        exit(1);
-    }
-}
+int BUFFER_SIZE = 256;
 
 struct opts {
-    char* port;
+    int port_num;
     bool compress_flag;
-    bool valid;
 };
 
-void read_options (int argc, char* argv[], struct opts* opts)
+bool read_options (int argc, char* argv[], struct opts* opts);
+void shut_down ();
+void sigpipe_handler (int sig);
+int server_connect (unsigned int port_num);
+
+
+int
+main(int argc, char **argv)
+{  
+    struct opts options;
+    if (! read_options(argc, argv, &options))
+    {
+        fprintf(stderr, "--port=PORT_NUM option is mandatory\n");
+        exit(1);
+    }
+
+    socket_fd = server_connect(options.port_num);
+
+    // register SIGPIPE handler
+    if (signal(SIGPIPE, sigpipe_handler) == SIG_ERR)
+    {
+        fprintf(stderr, "signal error: %s\n", strerror(errno));
+        exit(1);
+    }
+
+    // create two pipes
+    if (pipe(to_shell) < 0)
+    {
+        fprintf(stderr, "pipe error(1st pipe): %s\n", strerror(errno));
+        exit(1);
+    }
+
+    if (pipe(from_shell) < 0)
+    {
+        fprintf(stderr, "pipe error(2nd pipe): %s\n", strerror(errno));
+        exit(1);
+    }
+
+    // fork the new process
+    int pid = fork();
+    if (pid < 0)
+    {
+        fprintf(stderr, "fork error: %s\n", strerror(errno));
+        exit(1);
+    }
+    else if (pid == 0)
+    {
+        // child process
+
+        // close to_shell[1], the write end of th to_shell pipe
+        if (close(to_shell[1]) < 0) {
+            fprintf(stderr, "close error when closing to_shell[1]: %s\n", strerror(errno));
+            exit(1);
+        }
+
+        // redirect the output from terminal to stdin
+        if (close(0) < 0) {
+            fprintf(stderr, "close error when closing stdin: %s\n", strerror(errno));
+            exit(1);
+        }
+        if (dup(to_shell[0]) < 0) {
+            fprintf(stderr, "dup error when dup to_shell[0]: %s\n", strerror(errno));
+            exit(1);
+        }
+        if (close(to_shell[0]) < 0) {
+            fprintf(stderr, "close error when closing to_shell[0]: %s\n", strerror(errno));
+            exit(1);
+        }
+
+        // close from_shell[0], read end of the from_shell pipe 
+        if (close(from_shell[0]) < 0) {
+            fprintf(stderr, "close error when closing from_shell[0]: %s\n", strerror(errno));
+            exit(1);
+        }
+
+        // redirect stdout and stderr to the input to terminal
+        if (dup2(from_shell[1], 1) < 0) {
+            fprintf(stderr, "dup2 error when dup2 stdout to from_shell[1]: %s\n", strerror(errno));
+            exit(1);
+        }
+        if (dup2(from_shell[1], 2) < 0) {
+            fprintf(stderr, "dup2 error when dup2 stderr to from_shell[1]: %s\n", strerror(errno));
+            exit(1);
+        }
+
+        // close from_shell[1], now it can be replaced by stdout and stderr
+        if (close(from_shell[1]) < 0) {
+            fprintf(stderr, "close error when closing from_shell[1]: %s\n", strerror(errno));
+            exit(1);
+        }
+            
+        // execute the shell program
+        if (execlp("/bin/bash", "bash", NULL) < 0) {
+            fprintf(stderr, "execlp error when execlp /bin/bash: %s\n", strerror(errno));
+            exit(1);
+        }
+
+        // if the process still execute the code below, it means
+        // execlp did not take up this process, there is some error
+        fprintf(stderr, 
+                "should not get here, error when executing the child process: %s\n", 
+                 strerror(errno));
+        exit(1);
+    }
+    else
+    {
+        // parent process
+
+        // close to_shell[0], the read end of the to_shell pipe
+        if (close(to_shell[0]) < 0) {
+            fprintf(stderr, "close error when closing to_shell[0]: %s\n", strerror(errno));
+            exit(1);
+        }
+        // close from_shell[1], the write end of the from_shell pipe
+        if (close(from_shell[1]) < 0) {
+            fprintf(stderr, "close error when closing from_shell[1]: %s\n", strerror(errno));
+            exit(1);
+        }
+
+        bool shut_down_flag = false;
+        // initiate the pollfd structure
+        struct pollfd pollfds[2];
+        pollfds[0].fd = socket_fd;
+        pollfds[0].events = (POLLIN + POLLHUP + POLLERR);
+        pollfds[1].fd = from_shell[0];
+        pollfds[1].events = (POLLIN + POLLHUP + POLLERR);
+
+        // keep the read-write process until need to shut down
+        while ( !shut_down_flag)
+        {
+            // call poll to avoid the reads to block each other
+            if (poll(pollfds, 2, -1) < 0) {
+                fprintf(stderr, "poll error: %s\n", strerror(errno));
+                exit(1);
+            }
+
+            // socket_fd ready to read
+            if(pollfds[0].revents & POLLIN)
+            {
+                // read from socket_fd, process special characters, send to to_shell[1]
+                char buffer[BUFFER_SIZE];
+                int count = read(socket_fd, buffer, BUFFER_SIZE);
+                if (count < 0)
+                {
+                    fprintf(stderr, "error when reading from client: %s\n", strerror(errno));
+                    exit(1);
+                }
+                for (int k = 0; k < count; k++)
+                {
+                    char c = buffer[k];
+                    // read ^D from client
+                    if (c == 0x04)
+                    {
+                        // close the read end of the to_shell pipe if not closed
+                        if (! to_shell_close) {
+                            if (close(to_shell[1]) < 0) {
+                                    fprintf(stderr, "close error when closing to_shell[1]: %s\n", strerror(errno));
+                                    exit(1);
+                                }
+                            to_shell_close = true;
+                        }
+                        shut_down_flag = true;
+                    }
+                    // read ^C from client
+                    else if (c == 0x03)
+                    {
+                        if (kill(pid, SIGINT) < 0) {
+                            fprintf(stderr, "kill error when sending SIGINT to shell: %s\n", strerror(errno));
+                            exit(1);
+                        }
+                    }
+                    else if (c == '\r' || c == '\n')
+                    {
+                        if (write(to_shell[1], "\n", 1) < 0) {
+                            fprintf(stderr, "write error when writing <lf> to shell: %s\n", strerror(errno));
+                            exit(1);
+                        }
+                    }
+                    else
+                    {
+                        if (write(to_shell[1], &c, 1) < 0) {
+                            fprintf(stderr, "write error when writing to shell: %s\n", strerror(errno));
+                            exit(1);
+                        }
+                    }
+                }
+            }
+
+            // from_shell[0] ready to read
+            if (pollfds[1].revents & POLLIN)
+            {
+                // read from from_shell[0], process special characters, send to socket_fd
+                char buffer[BUFFER_SIZE];
+                int count = read(from_shell[0], buffer, BUFFER_SIZE);
+                if (count < 0)
+                {
+                    fprintf(stderr, "error when reading from shell: %s\n", strerror(errno));
+                    exit(1);
+                }
+                for (int k = 0; k < count; k++)
+                {
+                    char c = buffer[k];
+                    if (c == '\n')
+                    {
+                        if (write(socket_fd, "\r\n", 2) < 0) {
+                            fprintf(stderr, "write error when writing cr lf to stdout: %s\n", strerror(errno));
+                            exit(1);
+                        }
+                    }
+                    // terminate if receiving ^D
+                    else if (c == 0x04)
+                    {
+                        shut_down_flag = true;
+                    }
+                    else
+                    {
+                        if (write(socket_fd, &c, 1) < 0) {
+                            fprintf(stderr, "write error when writing to stdout: %s\n", strerror(errno));
+                            exit(1);
+                        }
+                    }
+                }
+            }
+            // handling error 
+            if( (pollfds[0].revents &  (POLLHUP | POLLERR) ) || 
+                    (pollfds[1].revents & (POLLHUP | POLLERR)) )
+            {
+                // Proceed to exit process: read every last byte from from_shell[0], write
+                // to socket_fd, get the exit status of the process and report to stderr.
+                char c;
+                bool EOF_flag = false;
+                while (! EOF_flag)
+                {
+                    int count = read(from_shell[0], &c, 1);
+                    if (count > 0)
+                    {
+                        if (write(socket_fd, &c, 1) < 0)
+                        {
+                            fprintf(stderr, 
+                                "error when writing last bytes from server: %s\n", 
+                                strerror(errno));
+                            exit(1);
+                        }
+                    }
+                    else if (count == 0)
+                        EOF_flag = true;
+                    else
+                    {
+                        fprintf(stderr, 
+                            "error when reading the last bytes from server: %s\n", 
+                            strerror(errno));
+                        exit(1);
+                    }
+                    
+                }
+                shut_down_flag = true;
+            }
+        }
+
+        // close the not closed pipe ends and shut down
+        if (! to_shell_close) {
+            if (close(to_shell[1]) < 0) {
+                fprintf(stderr, "close error when closing to_shell[1]: %s\n", strerror(errno));
+                exit(1);
+            }
+            to_shell_close = true;
+        }
+            
+        if (close(from_shell[0]) < 0) {
+            fprintf(stderr, "close error when closing from_shell[0]: %s\n", strerror(errno));
+            exit(1);
+        }
+        shut_down();
+    }
+
+}
+
+bool read_options (int argc, char* argv[], struct opts* opts)
 {
     int opt = 0;
     static struct option long_options[] = {
@@ -76,23 +316,26 @@ void read_options (int argc, char* argv[], struct opts* opts)
         {0, 0, 0, 0}
     };
 
+    bool flag = false;
+
     int long_index = 0;
-    opts -> port = NULL;
+    opts -> port_num = -1;
     opts -> compress_flag = false;
     while ((opt = getopt_long(argc, argv, "",
                     long_options, &long_index)) != -1) {
         switch (opt)
         {
         case 'p':
-            opts -> port = optarg;
+            opts -> port_num = atoi(optarg);
+            flag = true;
             break;
         case 'c':
             opts -> compress_flag = true;
             break;
         default:
             fprintf(stderr, "%s: Incorrect usage\n", argv[0]);
-            fprintf(stderr, "usage: ./lab1b-server [--port=PORT --compress]\n");
-            restore_and_exit(1);
+            fprintf(stderr, "usage: ./lab1b-server [--port=PORT_NUM --compress]\n");
+            exit(1);
         }
     }
 
@@ -102,10 +345,10 @@ void read_options (int argc, char* argv[], struct opts* opts)
         while (optind < argc)
             fprintf(stderr, "%s", argv[optind++]);
         fprintf (stderr, "\n");
-        restore_and_exit(1);
+        exit(1);
     }
 
-    return;
+    return flag;
 }
 
 void shut_down ()
@@ -114,11 +357,16 @@ void shut_down ()
     if (waitpid(pid, &status, 0) < 0)
     {
         fprintf(stderr, "waitpid error: %s", strerror(errno));
-        restore_and_exit(1);
+        exit(1);
     }
     fprintf(stderr, "SHELL EXIT SIGNAL=%d STATUS=%d\n", 
                     WTERMSIG(status), WEXITSTATUS(status));
-    restore_and_exit(0);
+    if (close(socket_fd) < 0)
+    {
+        fprintf(stderr, "error when closing the socket: %s\n", strerror(errno));
+        exit(1);
+    }
+    exit(0);
 }
 
 void sigpipe_handler (int sig)
@@ -130,269 +378,61 @@ void sigpipe_handler (int sig)
         {
             if (close(to_shell[1]) < 0) {
                 fprintf(stderr, "close error when closing to_shell[1]: %s\n", strerror(errno));
-                restore_and_exit(1);
+                exit(1);
             }
             to_shell_close = true;
         }
-        if (close(to_terminal[0]) < 0) {
-            fprintf(stderr, "close error when closing to_terminal[0]: %s\n", strerror(errno));
-            restore_and_exit(1);
+        if (close(from_shell[0]) < 0) {
+            fprintf(stderr, "close error when closing from_shell[0]: %s\n", strerror(errno));
+            exit(1);
         }
 
         shut_down();
     }
 }
 
-int
-main(int argc, char **argv)
+int server_connect (unsigned int port_num)
 {
+    int sockfd, new_fd;
+    struct sockaddr_in my_addr;
+    struct sockaddr_in their_addr;
+    int sin_size;
 
-    terminal_setup();
-    
-    struct opts options;
-    read_options(argc, argv, &options);
+    // create a socket
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0)
+    {
+        fprintf(stderr, "cannot create the socket: %s\n", strerror(errno));
+        exit(1);
+    }
+    // set the address info
+    my_addr.sin_family = AF_INET;
+    my_addr.sin_port = htons(port_num);
+    my_addr.sin_addr.s_addr = INADDR_ANY;
 
-    int read_size = 256;
+    memset(my_addr.sin_zero, '\0', sizeof(my_addr.sin_zero));
 
-        if (pipe(to_shell) < 0)
-        {
-            fprintf(stderr, "pipe error(1st pipe): %s\n", strerror(errno));
-            restore_and_exit(1);
-        }
-        if (pipe(to_terminal) < 0)
-        {
-            fprintf(stderr, "pipe error(2nd pipe): %s\n", strerror(errno));
-            restore_and_exit(1);
-        }
+    // bind the socket to the IP address and port number
+    int status = bind(sockfd, (struct sockaddr*) &my_addr, sizeof(struct sockaddr));
+    if (status < 0)
+    {
+        fprintf(stderr, "cannot bind to the given IP and port num: %s\n", strerror(errno));
+        exit(1);
+    }
+    if (listen(sockfd, 5) < 0)
+    {
+        fprintf(stderr, "listen fails: %s\n", strerror(errno));
+        exit(1);
+    }
 
-        if (signal(SIGPIPE, sigpipe_handler) == SIG_ERR)
-        {
-            fprintf(stderr, "signal error: %s\n", strerror(errno));
-            restore_and_exit(1);
-        }
+    sin_size = sizeof(struct sockaddr_in);
 
-        int pid = fork();
-        if (pid < 0)
-        {
-            fprintf(stderr, "fork error: %s\n", strerror(errno));
-            restore_and_exit(1);
-        }
-        else if (pid == 0)
-        {
-            // child process
-
-            // close to_shell[1], the write end of th to_shell pipe
-            if (close(to_shell[1]) < 0) {
-                fprintf(stderr, "close error when closing to_shell[1]: %s\n", strerror(errno));
-                restore_and_exit(1);
-            }
-
-            // redirect the output from terminal to stdin
-            if (close(0) < 0) {
-                fprintf(stderr, "close error when closing stdin: %s\n", strerror(errno));
-                restore_and_exit(1);
-            }
-            if (dup(to_shell[0]) < 0) {
-                fprintf(stderr, "dup error when dup to_shell[0]: %s\n", strerror(errno));
-                restore_and_exit(1);
-            }
-            if (close(to_shell[0]) < 0) {
-                fprintf(stderr, "close error when closing to_shell[0]: %s\n", strerror(errno));
-                restore_and_exit(1);
-            }
-
-            // close to_terminal[0], read end of the to_terminal pipe 
-            if (close(to_terminal[0]) < 0) {
-                fprintf(stderr, "close error when closing to_terminal[0]: %s\n", strerror(errno));
-                restore_and_exit(1);
-            }
-
-            // redirect stdout and stderr to the input to terminal
-            if (dup2(to_terminal[1], 1) < 0) {
-                fprintf(stderr, "dup2 error when dup2 stdout to to_terminal[1]: %s\n", strerror(errno));
-                restore_and_exit(1);
-            }
-            if (dup2(to_terminal[1], 2) < 0) {
-                fprintf(stderr, "dup2 error when dup2 stderr to to_terminal[1]: %s\n", strerror(errno));
-                restore_and_exit(1);
-            }
-
-            // close to_terminal[1], now it can be replaced by stdout and stderr
-            if (close(to_terminal[1]) < 0) {
-                fprintf(stderr, "close error when closing to_terminal[1]: %s\n", strerror(errno));
-                restore_and_exit(1);
-            }
-            
-            // execute the shell program
-            if (execlp("/bin/bash", "bash", NULL) < 0) {
-                fprintf(stderr, "execlp error when execlp /bin/bash: %s\n", strerror(errno));
-                restore_and_exit(1);
-            }
-
-            // if the process still execute the code below, it means
-            // execlp did not take up this process, there is some error
-            fprintf(stderr, 
-                    "should not get here, error when executing the child process: %s\n", 
-                    strerror(errno));
-            restore_and_exit(1);
-        }
-        else
-        {
-            // parent process
-
-            // close to_shell[0], the read end of the to_shell pipe
-            if (close(to_shell[0]) < 0) {
-                fprintf(stderr, "close error when closing to_shell[0]: %s\n", strerror(errno));
-                restore_and_exit(1);
-            }
-            // close to_terminal[1], the write end of the to_terminal pipe
-            if (close(to_terminal[1]) < 0) {
-                fprintf(stderr, "close error when closing to_terminal[1]: %s\n", strerror(errno));
-                restore_and_exit(1);
-            }
-
-            // this flag determines whether to shut down
-            bool shut_down_flag = false;
-
-            // initiate the pollfd structure
-            struct pollfd pollfds[2];
-            pollfds[0].fd = 0;
-            pollfds[0].events = (POLLIN + POLLHUP + POLLERR);
-            pollfds[1].fd = to_terminal[0];
-            pollfds[1].events = (POLLIN + POLLHUP + POLLERR);
-
-            // keep the read-write process until need to shut down
-            while ( !shut_down_flag)
-            {
-                // call poll to avoid the reads to block each other
-                if (poll(pollfds, 2, -1) < 0) {
-                    fprintf(stderr, "poll error: %s\n", strerror(errno));
-                    restore_and_exit(1);
-                }
-
-                // getting read from stdin
-                if(pollfds[0].revents & POLLIN)
-                {
-                    char c[read_size];
-                    int count = read(0, c, sizeof(c));
-                    if (count < 0) {
-                        fprintf(stderr, "read error from stdin in --shell option: %s\n", strerror(errno));
-                        restore_and_exit(1);
-                    }
-                    for(int k = 0; k < count; k++)
-                    {
-                        if (c[k] == 0x04)
-                        {
-                            // shut down if reciving ^D from stdin
-                            if (write(1, "^D", 2) < 0) {
-                                fprintf(stderr, "write error when writing ^D: %s\n", strerror(errno));
-                                restore_and_exit(1);
-                            }
-                            // close the read end of the to_shell pipe if not closed
-                            if (! to_shell_close) {
-                                if (close(to_shell[1]) < 0) {
-                                        fprintf(stderr, "close error when closing to_shell[1]: %s\n", strerror(errno));
-                                        restore_and_exit(1);
-                                    }
-                                to_shell_close = true;
-                            }
-                            shut_down_flag = true;
-                        }
-                        // send the "right" newline to stdout and shell
-                        else if (c[k] == '\r' || c[k] == '\n')
-                        {
-                            if (write(1, "\r\n", 2) < 0) {
-                                fprintf(stderr, "write error when writing <cr><lf> to stdout: %s\n", strerror(errno));
-                                restore_and_exit(1);
-                            }
-                            if (write(to_shell[1], "\n", 1) < 0) {
-                                fprintf(stderr, "write error when writing <lf> to shell: %s\n", strerror(errno));
-                                restore_and_exit(1);
-                            }
-                        }
-                        // send the interrupt signal to shell
-                        else if (c[k] == 0x03)
-                        {
-                            if (write(1, "^C", 2) < 0) {
-                                fprintf(stderr, "write error when writing ^C to stdout: %s\n", strerror(errno));
-                                restore_and_exit(1);
-                            }
-                            if (kill(pid, SIGINT) < 0) {
-                                fprintf(stderr, "kill error when sending SIGINT to shell: %s\n", strerror(errno));
-                                restore_and_exit(1);
-                            }
-                        }
-                        else
-                        {
-                            if (write(1, &c[k], 1) < 0) {
-                                fprintf(stderr, "write error when writing to stdout: %s\n", strerror(errno));
-                                restore_and_exit(1);
-                            }
-                            if (write(to_shell[1], &c[k], 1) < 0) {
-                                fprintf(stderr, "write error when writing to shell: %s\n", strerror(errno));
-                                restore_and_exit(1);
-                            }
-                        }
-                        
-                    }
-                }
-                // getting read from shell
-                if (pollfds[1].revents & POLLIN)
-                {
-                    char c[read_size];
-                    int count = read(to_terminal[0], c, sizeof(c));
-                    if (count < 0) {
-                        fprintf(stderr, "read error when reading from shell: %s\n", strerror(errno));
-                        restore_and_exit(1);
-                    }
-                    for (int k = 0; k < count; k++)
-                    {
-                        // send the "right" newline to stdout
-                        if (c[k] == '\n')
-                        {
-                            if (write(1, "\r\n", 2) < 0) {
-                                fprintf(stderr, "write error when writing cr lf to stdout: %s\n", strerror(errno));
-                                restore_and_exit(1);
-                            }
-                        }
-                        // terminate if receiving ^D
-                        else if (c[k] == 0x04)
-                        {
-                            if (write(1, "^D", 2) < 0) {
-                                fprintf(stderr, "write error when writing ^D to sdtout: %s\n", strerror(errno));
-                                restore_and_exit(1);
-                            }
-                            shut_down_flag = true;
-                        }
-                        else
-                        {
-                            if (write(1, &c[k], 1) < 0) {
-                                fprintf(stderr, "write error when writing to stdout: %s\n", strerror(errno));
-                                restore_and_exit(1);
-                            }
-                        }
-                        
-                    }
-                }
-                // handling error 
-                if( (pollfds[0].revents &  (POLLHUP | POLLERR) ) || 
-                        (pollfds[1].revents & (POLLHUP | POLLERR)) )
-                    shut_down_flag = true;
-            }
-            // close the not closed pipe ends and shut down
-            if (! to_shell_close) {
-                if (close(to_shell[1]) < 0) {
-                    fprintf(stderr, "close error when closing to_shell[1]: %s\n", strerror(errno));
-                    restore_and_exit(1);
-                }
-                to_shell_close = true;
-            }
-            
-            if (close(to_terminal[0]) < 0) {
-                fprintf(stderr, "close error when closing to_terminal[0]: %s\n", strerror(errno));
-                restore_and_exit(1);
-            }
-            shut_down();
-        }
-
+    // wait for client's connection, their_addr stores client's address
+    new_fd = accept(sockfd, (struct sockaddr*)&their_addr, (socklen_t*)&sin_size);
+    if (new_fd < 0)
+    {
+        fprintf(stderr, "accept fails: %s\n", strerror(errno));
+        exit(1);
+    }
+    return new_fd;
 }
