@@ -15,7 +15,7 @@ clean:
 
 submission-files = *.c README Makefile
 
-lab1a-505375562.tar.gz: $(submission-files)
+lab1b-505375562.tar.gz: $(submission-files)
 	tar -czvf $@ $(submission-files)
 
-dist: lab1a-505375562.tar.gz
+dist: lab1b-505375562.tar.gz

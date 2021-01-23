@@ -13,14 +13,17 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
 #include <netinet/in.h>
 #include <netdb.h>
+#include <fcntl.h>
 
 struct termios tattr;
 struct opts {
     int port_num;
     char* file_name;
     bool compress_flag;
+    bool log_flag;
 };
 int BUFFER_SIZE = 256;
 
@@ -55,6 +58,17 @@ main (int argc, char **argv)
 
     bool shut_down_flag = false;
 
+    int log_fd;
+    if (options.log_flag)
+    {
+        if ((log_fd = creat(options.file_name, 0666)) < 0)
+        {
+            fprintf(stderr, "error when creating file %s: %s", 
+                options.file_name, strerror(errno));
+            restore_and_exit(1);
+        }
+    }
+
     while (! shut_down_flag) {
 
         if (poll(pollfds, 2, -1) < 0) {
@@ -80,6 +94,16 @@ main (int argc, char **argv)
                 fprintf(stderr, "error when writing to stdout: %s\n", strerror(errno));
                 restore_and_exit(1);
             }
+
+            if (options.log_flag)
+            {
+                char prefix[20];
+                sprintf(prefix, "RECEIVED %d bytes: ", count);
+                write(log_fd, prefix, strlen(prefix));
+                write(log_fd, buffer, count);
+                write(log_fd, "\n", 1);
+            }
+
         }
 
         // stdin ready to read
@@ -118,41 +142,25 @@ main (int argc, char **argv)
                 }
                 
             }
+
+            if (options.log_flag)
+            {
+                char prefix[20];
+                sprintf(prefix, "SENT %d bytes: ", count);
+                write(log_fd, prefix, strlen(prefix));
+                write(log_fd, buffer, count);
+                write(log_fd, "\n", 1);
+            }
         }
 
         // handling error 
-        if( (pollfds[0].revents &  (POLLHUP | POLLERR)) ||
-            (pollfds[1].revents & (POLLHUP | POLLERR))  )
-        {
-            // proceed to exit process: read every last byte from socket_fd, write to stdout,
-            // restore terminal and exit
-            char c;
-            bool EOF_flag = false;
-            while (! EOF_flag)
-            {
-                int count = read(socket_fd, &c, 1);
-                if (count > 0)
-                {
-                    if (write(0, &c, 1) < 0)
-                    {
-                        fprintf(stderr, 
-                            "error when writing last bytes from server: %s\n", 
-                            strerror(errno));
-                        restore_and_exit(1);
-                    }
-                }
-                else if (count == 0)
-                    EOF_flag = true;
-                else
-                {
-                    fprintf(stderr, 
-                        "error when reading the last bytes from server: %s\n", 
-                        strerror(errno));
-                    restore_and_exit(1);
-                }
-                
-            }
+        if (pollfds[0].revents &  (POLLHUP | POLLERR))
             shut_down_flag = true;
+             
+        if (pollfds[1].revents & (POLLHUP | POLLERR))
+        {
+            fprintf(stderr, "error with poll(stdin): POLLHUP or POLLERR\n");
+            restore_and_exit(1);
         }
 
     }
@@ -192,6 +200,7 @@ bool read_options (int argc, char* argv[], struct opts* opts)
     opts -> port_num = -1;
     opts -> file_name = NULL;
     opts -> compress_flag = false;
+    opts -> log_flag = false;
     while ((opt = getopt_long(argc, argv, "",
                     long_options, &long_index)) != -1) {
         switch (opt)
@@ -202,6 +211,7 @@ bool read_options (int argc, char* argv[], struct opts* opts)
             break;
         case 'l':
             opts -> file_name = optarg;
+            opts -> log_flag = true;
             break;
         case 'c':
             opts -> compress_flag = true;
