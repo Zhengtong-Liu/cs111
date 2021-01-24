@@ -17,6 +17,7 @@
 #include <netinet/in.h>
 #include <netdb.h>
 #include <fcntl.h>
+#include <zlib.h>
 
 struct termios tattr;
 struct opts {
@@ -26,6 +27,8 @@ struct opts {
     bool log_flag;
 };
 int BUFFER_SIZE = 256;
+z_stream defstream;
+z_stream infstream;
 
 void restore_and_exit (int exit_status);
 bool read_options (int argc, char* argv[], struct opts* opts);
@@ -69,6 +72,21 @@ main (int argc, char **argv)
         }
     }
 
+    if (options.compress_flag)
+    {
+        defstream.zalloc = Z_NULL;
+        defstream.zfree = Z_NULL;
+        defstream.opaque = Z_NULL;
+        
+        int ret = deflateInit(&defstream, Z_DEFAULT_COMPRESSION);
+        if (ret != Z_OK)
+        {
+            fprintf(stderr, "error when initiate deflate(compress)\n");
+            restore_and_exit(1);
+        }
+    }
+
+
     while (! shut_down_flag) {
 
         if (poll(pollfds, 2, -1) < 0) {
@@ -109,17 +127,11 @@ main (int argc, char **argv)
         // stdin ready to read
         if (pollfds[1].revents & POLLIN) {
             // read from stdin, process special characters, send to stdout and socket_fd
-            char buffer[BUFFER_SIZE];
+            unsigned char buffer[BUFFER_SIZE];
             int count = read(0, buffer, BUFFER_SIZE);
             if (count < 0)
             {
                 fprintf(stderr, "error when reading from stdin: %s\n", strerror(errno));
-                restore_and_exit(1);
-            }
-
-            if (write(socket_fd, buffer, count) < 0)
-            {
-                fprintf(stderr, "error when writing to the server: %s\n", strerror(errno));
                 restore_and_exit(1);
             }
 
@@ -143,14 +155,55 @@ main (int argc, char **argv)
                 
             }
 
-            if (options.log_flag)
+            if (options.compress_flag)
             {
-                char prefix[20];
-                sprintf(prefix, "SENT %d bytes: ", count);
-                write(log_fd, prefix, strlen(prefix));
-                write(log_fd, buffer, count);
-                write(log_fd, "\n", 1);
+                unsigned char outbuf[BUFFER_SIZE];
+                int to_send_bytes;
+                defstream.avail_in = count;
+                defstream.next_in = buffer;
+                defstream.avail_out = sizeof(outbuf);
+                defstream.next_out = outbuf;
+
+                while (defstream.avail_in > 0)
+                {
+                    deflate(&defstream, Z_SYNC_FLUSH);
+                }
+                to_send_bytes = sizeof(outbuf) - defstream.avail_out;
+
+                if (write(socket_fd, outbuf, to_send_bytes) < 0)
+                {
+                    fprintf(stderr, "error when writing to the server: %s\n", strerror(errno));
+                    restore_and_exit(1);
+                }
+
+                if (options.log_flag)
+                {
+                    char prefix[20];
+                    sprintf(prefix, "SENT %d bytes: ", to_send_bytes);
+                    write(log_fd, prefix, strlen(prefix));
+                    write(log_fd, outbuf, to_send_bytes);
+                    write(log_fd, "\n", 1);
+                }
             }
+            else
+            {
+                if (write(socket_fd, buffer, count) < 0)
+                {
+                    fprintf(stderr, "error when writing to the server: %s\n", strerror(errno));
+                    restore_and_exit(1);
+                }
+
+                if (options.log_flag)
+                {
+                    char prefix[20];
+                    sprintf(prefix, "SENT %d bytes: ", count);
+                    write(log_fd, prefix, strlen(prefix));
+                    write(log_fd, buffer, count);
+                    write(log_fd, "\n", 1);
+                }
+            }
+            
+
         }
 
         // handling error 
@@ -171,6 +224,12 @@ main (int argc, char **argv)
         fprintf(stderr, "error when closing the socket: %s\n", strerror(errno));
         restore_and_exit(1);
     }
+
+    if (options.compress_flag)
+    {
+        deflateEnd(&defstream);
+    }
+
     restore_and_exit(0);
 }
 

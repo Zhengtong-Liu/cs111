@@ -17,6 +17,7 @@
 #include <sys/wait.h>
 #include <netinet/in.h>
 #include <netdb.h>
+#include <zlib.h>
 
 struct termios tattr;
 int pid, socket_fd;
@@ -24,6 +25,8 @@ int to_shell[2];
 int from_shell[2];
 bool to_shell_close = false;
 int BUFFER_SIZE = 256;
+z_stream defstream;
+z_stream infstream;
 
 struct opts {
     int port_num;
@@ -66,6 +69,20 @@ main(int argc, char **argv)
     {
         fprintf(stderr, "pipe error(2nd pipe): %s\n", strerror(errno));
         exit(1);
+    }
+
+    if (options.compress_flag)
+    {
+        infstream.zalloc = Z_NULL;
+        infstream.zfree = Z_NULL;
+        infstream.opaque = Z_NULL;
+        
+        int ret = inflateInit(&infstream);
+        if (ret != Z_OK)
+        {
+            fprintf(stderr, "error when initiate inflate(decompress)\n");
+            exit(1);
+        }
     }
 
     // fork the new process
@@ -170,52 +187,114 @@ main(int argc, char **argv)
             if(pollfds[0].revents & POLLIN)
             {
                 // read from socket_fd, process special characters, send to to_shell[1]
-                char buffer[BUFFER_SIZE];
+                unsigned char buffer[BUFFER_SIZE];
                 int count = read(socket_fd, buffer, BUFFER_SIZE);
+
                 if (count < 0)
                 {
                     fprintf(stderr, "error when reading from client: %s\n", strerror(errno));
                     exit(1);
                 }
-                for (int k = 0; k < count; k++)
+
+                
+                if (options.compress_flag)
                 {
-                    char c = buffer[k];
-                    // read ^D from client
-                    if (c == 0x04)
-                    {
-                        // close the read end of the to_shell pipe if not closed
-                        if (! to_shell_close) {
-                            if (close(to_shell[1]) < 0) {
-                                    fprintf(stderr, "close error when closing to_shell[1]: %s\n", strerror(errno));
-                                    exit(1);
-                                }
-                            to_shell_close = true;
-                        }
-                        shut_down_flag = true;
+                    unsigned char outbuf[BUFFER_SIZE];
+                    int received_bytes;
+                    infstream.avail_in = count;
+                    infstream.next_in = buffer;
+                    infstream.avail_out = sizeof(outbuf);
+                    infstream.next_out = outbuf;
+
+                    while (infstream.avail_in > 0) {
+                        inflate(&infstream, Z_SYNC_FLUSH);
                     }
-                    // read ^C from client
-                    else if (c == 0x03)
+                    received_bytes = sizeof(outbuf) - infstream.avail_out;
+                    for (int k = 0; k < count; k++)
                     {
-                        if (kill(pid, SIGINT) < 0) {
-                            fprintf(stderr, "kill error when sending SIGINT to shell: %s\n", strerror(errno));
-                            exit(1);
+                        char c = outbuf[k];
+                        // read ^D from client
+                        if (c == 0x04)
+                        {
+                            // close the read end of the to_shell pipe if not closed
+                            if (! to_shell_close) {
+                                if (close(to_shell[1]) < 0) {
+                                        fprintf(stderr, "close error when closing to_shell[1]: %s\n", strerror(errno));
+                                        exit(1);
+                                    }
+                                to_shell_close = true;
+                            }
+                            shut_down_flag = true;
                         }
-                    }
-                    else if (c == '\r' || c == '\n')
-                    {
-                        if (write(to_shell[1], "\n", 1) < 0) {
-                            fprintf(stderr, "write error when writing <lf> to shell: %s\n", strerror(errno));
-                            exit(1);
+                        // read ^C from client
+                        else if (c == 0x03)
+                        {
+                            if (kill(pid, SIGINT) < 0) {
+                                fprintf(stderr, "kill error when sending SIGINT to shell: %s\n", strerror(errno));
+                                exit(1);
+                            }
                         }
-                    }
-                    else
-                    {
-                        if (write(to_shell[1], &c, 1) < 0) {
-                            fprintf(stderr, "write error when writing to shell: %s\n", strerror(errno));
-                            exit(1);
+                        else if (c == '\r' || c == '\n')
+                        {
+                            if (write(to_shell[1], "\n", 1) < 0) {
+                                fprintf(stderr, "write error when writing <lf> to shell: %s\n", strerror(errno));
+                                exit(1);
+                            }
+                        }
+                        else
+                        {
+                            if (write(to_shell[1], &c, 1) < 0) {
+                                fprintf(stderr, "write error when writing to shell: %s\n", strerror(errno));
+                                exit(1);
+                            }
                         }
                     }
                 }
+                else
+                {
+                    for (int k = 0; k < count; k++)
+                    {
+                        char c = buffer[k];
+                        // read ^D from client
+                        if (c == 0x04)
+                        {
+                            // close the read end of the to_shell pipe if not closed
+                            if (! to_shell_close) {
+                                if (close(to_shell[1]) < 0) {
+                                        fprintf(stderr, "close error when closing to_shell[1]: %s\n", strerror(errno));
+                                        exit(1);
+                                    }
+                                to_shell_close = true;
+                            }
+                            shut_down_flag = true;
+                        }
+                        // read ^C from client
+                        else if (c == 0x03)
+                        {
+                            if (kill(pid, SIGINT) < 0) {
+                                fprintf(stderr, "kill error when sending SIGINT to shell: %s\n", strerror(errno));
+                                exit(1);
+                            }
+                        }
+                        else if (c == '\r' || c == '\n')
+                        {
+                            if (write(to_shell[1], "\n", 1) < 0) {
+                                fprintf(stderr, "write error when writing <lf> to shell: %s\n", strerror(errno));
+                                exit(1);
+                            }
+                        }
+                        else
+                        {
+                            if (write(to_shell[1], &c, 1) < 0) {
+                                fprintf(stderr, "write error when writing to shell: %s\n", strerror(errno));
+                                exit(1);
+                            }
+                        }
+                    }
+                }
+                
+
+
             }
 
             // from_shell[0] ready to read
@@ -302,6 +381,11 @@ main(int argc, char **argv)
             fprintf(stderr, "close error when closing from_shell[0]: %s\n", strerror(errno));
             exit(1);
         }
+
+        if (options.compress_flag) {
+            inflateEnd(&infstream);
+        }
+
         shut_down();
     }
 
