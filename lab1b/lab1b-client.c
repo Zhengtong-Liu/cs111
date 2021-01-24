@@ -61,7 +61,7 @@ main (int argc, char **argv)
 
     bool shut_down_flag = false;
 
-    int log_fd;
+    int log_fd = -1;
     if (options.log_flag)
     {
         if ((log_fd = creat(options.file_name, 0666)) < 0)
@@ -115,7 +115,7 @@ main (int argc, char **argv)
 
             if (options.log_flag)
             {
-                char prefix[20];
+                char prefix[BUFFER_SIZE];
                 sprintf(prefix, "RECEIVED %d bytes: ", count);
                 write(log_fd, prefix, strlen(prefix));
                 write(log_fd, buffer, count);
@@ -178,7 +178,7 @@ main (int argc, char **argv)
 
                 if (options.log_flag)
                 {
-                    char prefix[20];
+                    char prefix[BUFFER_SIZE];
                     sprintf(prefix, "SENT %d bytes: ", to_send_bytes);
                     write(log_fd, prefix, strlen(prefix));
                     write(log_fd, outbuf, to_send_bytes);
@@ -195,7 +195,7 @@ main (int argc, char **argv)
 
                 if (options.log_flag)
                 {
-                    char prefix[20];
+                    char prefix[BUFFER_SIZE];
                     sprintf(prefix, "SENT %d bytes: ", count);
                     write(log_fd, prefix, strlen(prefix));
                     write(log_fd, buffer, count);
