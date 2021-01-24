@@ -30,9 +30,20 @@ int BUFFER_SIZE = 256;
 z_stream defstream;
 z_stream infstream;
 
+/* this function restores the terminal status before exiting with
+return code of exit_status */
 void restore_and_exit (int exit_status);
+
+/* this function reads the command line arguments, parses them
+and store the optargs or flags into the struct opts */
 bool read_options (int argc, char* argv[], struct opts* opts);
+
+/* this function sets the terminal to character-at-a-time, no-echo
+mode */
 void terminal_setup ();
+
+/* this function connects the client program to port of certain host
+via socket */
 int client_connect (char* host_name, unsigned int port);
 
 
@@ -47,8 +58,8 @@ main (int argc, char **argv)
         exit(1);
     }
 
+    // set up terminal and get the socket file descriptor
     terminal_setup();
-
     int socket_fd = client_connect("localhost", options.port_num);
     
 
@@ -59,8 +70,10 @@ main (int argc, char **argv)
     pollfds[1].fd = 0;
     pollfds[1].events = (POLLIN + POLLHUP + POLLERR);
 
+    // whether the client program should be shut down
     bool shut_down_flag = false;
 
+    // set up the log file descriptor if the --log option is specified
     int log_fd = -1;
     if (options.log_flag)
     {
@@ -72,6 +85,7 @@ main (int argc, char **argv)
         }
     }
 
+    // initiate deflate/inflate if the --compress option is specified
     if (options.compress_flag)
     {
         defstream.zalloc = Z_NULL;
@@ -98,8 +112,11 @@ main (int argc, char **argv)
     }
 
 
+    // keep reading from and writing to socket/stdin properly
+    // until shut down flag is true
     while (! shut_down_flag) {
 
+        // call poll() to avoid reads to block each other
         if (poll(pollfds, 2, -1) < 0) {
             fprintf(stderr, "poll error: %s\n", strerror(errno));
             restore_and_exit(1);
@@ -115,9 +132,11 @@ main (int argc, char **argv)
                 fprintf(stderr, "error when reading from server: %s\n", strerror(errno));
                 restore_and_exit(1);
             }
+            // if no output from the server, shut down the client (may need to change)
             else if (count == 0)
                 shut_down_flag = true;
             
+            // keep a log of incoming pre-decompressed data if --log option is specified
             if (options.log_flag)
             {
                 char prefix[BUFFER_SIZE];
@@ -127,6 +146,8 @@ main (int argc, char **argv)
                 write(log_fd, "\n", 1);
             }
 
+            // if --compress option is specified, inflate(decompress) the data
+            // before writing to stdout
             if (options.compress_flag)
             {
                 unsigned char outbuf[BUFFER_SIZE];
@@ -166,6 +187,7 @@ main (int argc, char **argv)
                 restore_and_exit(1);
             }
 
+            // echo the input from stdin to display
             for (int k = 0; k < count; k++)
             {
                 char c = buffer[k];
@@ -185,7 +207,9 @@ main (int argc, char **argv)
                 }
                 
             }
-
+            // if --compress option is specified, deflate(compress) before
+            // sending the data to the server; if not, send data and keep a log
+            // of data if needed
             if (options.compress_flag)
             {
                 unsigned char outbuf[BUFFER_SIZE];
@@ -207,6 +231,8 @@ main (int argc, char **argv)
                     restore_and_exit(1);
                 }
 
+                // keep a log of outgoing post-compressed data if --log option
+                // is specified
                 if (options.log_flag)
                 {
                     char prefix[BUFFER_SIZE];
@@ -237,10 +263,12 @@ main (int argc, char **argv)
 
         }
 
-        // handling error 
+        // if the client receives an error on the socket from the server
+        // then shut down
         if (pollfds[0].revents &  (POLLHUP | POLLERR))
             shut_down_flag = true;
-             
+
+        // if receiving error from the stdin, then it is considered as an error  
         if (pollfds[1].revents & (POLLHUP | POLLERR))
         {
             fprintf(stderr, "error with poll(stdin): POLLHUP or POLLERR\n");
@@ -249,16 +277,18 @@ main (int argc, char **argv)
 
     }
 
+    // shut down process for the client program
     // close socket
     if (close(socket_fd) < 0)
     {
         fprintf(stderr, "error when closing the socket: %s\n", strerror(errno));
         restore_and_exit(1);
     }
-
+    // free up the allocated data structures relating to (de)compression
     if (options.compress_flag)
     {
         deflateEnd(&defstream);
+        deflateEnd(&infstream);
     }
 
     restore_and_exit(0);
@@ -308,7 +338,7 @@ bool read_options (int argc, char* argv[], struct opts* opts)
             break;
         default:
             fprintf(stderr, "%s: Incorrect usage\n", argv[0]);
-            fprintf(stderr, "usage: ./lab1b-client [--port=PORT_NUM --log=FILENAME --compress]\n");
+            fprintf(stderr, "usage: ./lab1b-client [--port=PORT_NUM --log=FILE_NAME --compress]\n");
             exit(1);
         }
     }

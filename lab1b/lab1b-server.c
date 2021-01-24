@@ -33,15 +33,26 @@ struct opts {
     bool compress_flag;
 };
 
+/* this function reads the command line arguments, parses them
+and store the optargs or flags into the struct opts */
 bool read_options (int argc, char* argv[], struct opts* opts);
+
+/* this function shut down the server's parent process before collecting
+exit status from shell and closing the socket*/
 void shut_down ();
+
+/* the SIGPIPE handler function */
 void sigpipe_handler (int sig);
+
+/* this function sets up the socket on the server side and wait to
+be connected on certain port */
 int server_connect (unsigned int port_num);
 
 
 int
 main(int argc, char **argv)
 {  
+    // process command line arguments
     struct opts options;
     if (! read_options(argc, argv, &options))
     {
@@ -49,6 +60,7 @@ main(int argc, char **argv)
         exit(1);
     }
 
+    // get the socket file descriptor
     socket_fd = server_connect(options.port_num);
 
     // register SIGPIPE handler
@@ -71,6 +83,7 @@ main(int argc, char **argv)
         exit(1);
     }
 
+    // initiate deflate/inflate if the --compress option is specified
     if (options.compress_flag)
     {
         defstream.zalloc = Z_NULL;
@@ -177,6 +190,7 @@ main(int argc, char **argv)
             exit(1);
         }
 
+        // whether the server's parent process should be shut down
         bool shut_down_flag = false;
         // initiate the pollfd structure
         struct pollfd pollfds[2];
@@ -207,7 +221,9 @@ main(int argc, char **argv)
                     exit(1);
                 }
 
-                
+                // if --compress is specified, inflate(decompress) the data from the client
+                // before processing the data; else just process the incoming data and send
+                // to shell
                 if (options.compress_flag)
                 {
                     unsigned char outbuf[BUFFER_SIZE];
@@ -221,6 +237,7 @@ main(int argc, char **argv)
                         inflate(&infstream, Z_SYNC_FLUSH);
                     }
                     received_bytes = sizeof(outbuf) - infstream.avail_out;
+                    // process special characters and send to shell
                     for (int k = 0; k < received_bytes; k++)
                     {
                         char c = outbuf[k];
@@ -319,6 +336,9 @@ main(int argc, char **argv)
                     fprintf(stderr, "error when reading from shell: %s\n", strerror(errno));
                     exit(1);
                 }
+                // if --compress option is specified, deflate(compress) the data
+                // before processing and sending it to the client via socket; otherwise,
+                // simply process and send the data 
                 for (int k = 0; k < count; k++)
                 {
                     char c = buffer[k];
@@ -433,12 +453,13 @@ main(int argc, char **argv)
             }
             to_shell_close = true;
         }
-            
+  
         if (close(from_shell[0]) < 0) {
             fprintf(stderr, "close error when closing from_shell[0]: %s\n", strerror(errno));
             exit(1);
         }
 
+        // free up the allocated data structures relating to (de)compression
         if (options.compress_flag) {
             deflateEnd(&defstream);
             inflateEnd(&infstream);

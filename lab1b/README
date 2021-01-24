@@ -1,3 +1,53 @@
 NAME: Zhengtong Liu
 EMAIL: ericliu2023@g.ucla.edu
 ID: 505375562
+
+lab1b-client.c
+    this is the source file of the client program; it supports options
+    including:
+        --port=PORT_NUM ... (mandatory option) specifies the port number
+    of the server to connect to
+        --log=FILE_NAME ... maintains a record of data sent over the socket;
+    pre-decompressed incoming data or post-compressed outgoing data if --compress
+    option is specified
+        --compress ... enable compression of data sending to the server and
+        decompression of data receiving from the server
+
+    the behavior of lab1b-client program looks like a shell terminal, and it
+    achieves this through connecting to a server program that runs a shell via
+    socket
+
+lab1b-server.c
+    this is the source file of the server program; it supports options
+    including:
+        --port=PORT_NUM ... (mandatory option) specifies the port number
+    of this server that will connect to a client
+        --compress ... enable compression of data sending to the client and
+        decompression of data receiving from the client
+
+    the lab1b-server program connects and receive inputs from a client program;
+    the server program then sends the processed input to shell, which is achieved
+    through fork and pipe
+
+Makefile
+    the targets of the Makefile includes:
+        default ... compiles lab1b-client.c and lab1b-server.c
+    to executables lab1b-client and lab1b-server, respectively
+
+        lab1b-client ... compiles lab1b-client.c to lab1b-client;
+    the gcc option flags includes -Og (for optimization), 
+    -g3 (for debugging), -Wall -Wextra (for debugging), 
+    -lz (dynamic link to zlib) and -o (write the output to lab1b-client)
+
+        lab1b-server ... compiles lab1b-server.c to lab1b-server;
+    the gcc option flags are the same as above
+
+        clean ... clean the files created be Makefile
+
+        dist ... create the tarball to be submitted
+
+To test my programs, I opened two terminal windows and start the server 
+program on one terminal, and then start the client program on the other;
+then I tried some valid or invalid shell commands to see the outputs. I
+also tried the different options for the client and server program. The 
+test script also helps a lot, thanks!
