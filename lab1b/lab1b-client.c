@@ -84,6 +84,17 @@ main (int argc, char **argv)
             fprintf(stderr, "error when initiate deflate(compress)\n");
             restore_and_exit(1);
         }
+
+        infstream.zalloc = Z_NULL;
+        infstream.zfree = Z_NULL;
+        infstream.opaque = Z_NULL;
+        
+        ret = inflateInit(&infstream);
+        if (ret != Z_OK)
+        {
+            fprintf(stderr, "error when initiate inflate(decompress)\n");
+            exit(1);
+        }
     }
 
 
@@ -97,7 +108,7 @@ main (int argc, char **argv)
         // socket_id ready to read
         if (pollfds[0].revents & POLLIN) {
             // read from socket_fd, process special characters, send to stdout
-            char buffer[BUFFER_SIZE];
+            unsigned char buffer[BUFFER_SIZE];
             int count = read(socket_fd, buffer, BUFFER_SIZE);
             if (count < 0)
             {
@@ -107,12 +118,6 @@ main (int argc, char **argv)
             else if (count == 0)
                 shut_down_flag = true;
             
-            if (write(0, buffer, count) < 0)
-            {
-                fprintf(stderr, "error when writing to stdout: %s\n", strerror(errno));
-                restore_and_exit(1);
-            }
-
             if (options.log_flag)
             {
                 char prefix[BUFFER_SIZE];
@@ -122,6 +127,32 @@ main (int argc, char **argv)
                 write(log_fd, "\n", 1);
             }
 
+            if (options.compress_flag)
+            {
+                unsigned char outbuf[BUFFER_SIZE];
+                infstream.avail_in = count;
+                infstream.next_in = buffer;
+                infstream.avail_out = sizeof(outbuf);
+                infstream.next_out = outbuf;
+
+                while (infstream.avail_in > 0) {
+                    inflate(&infstream, Z_SYNC_FLUSH);
+                }
+                int received_bytes = sizeof(outbuf) - infstream.avail_out;
+                if (write(0, outbuf, received_bytes) < 0)
+                {
+                    fprintf(stderr, "error when writing to stdout: %s\n", strerror(errno));
+                    restore_and_exit(1);
+                }
+            }
+            else
+            {
+                if (write(0, buffer, count) < 0)
+                {
+                    fprintf(stderr, "error when writing to stdout: %s\n", strerror(errno));
+                    restore_and_exit(1);
+                }
+            }
         }
 
         // stdin ready to read

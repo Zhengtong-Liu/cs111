@@ -73,11 +73,22 @@ main(int argc, char **argv)
 
     if (options.compress_flag)
     {
+        defstream.zalloc = Z_NULL;
+        defstream.zfree = Z_NULL;
+        defstream.opaque = Z_NULL;
+        
+        int ret = deflateInit(&defstream, Z_DEFAULT_COMPRESSION);
+        if (ret != Z_OK)
+        {
+            fprintf(stderr, "error when initiate deflate(compress)\n");
+            exit(1);
+        }       
+
         infstream.zalloc = Z_NULL;
         infstream.zfree = Z_NULL;
         infstream.opaque = Z_NULL;
         
-        int ret = inflateInit(&infstream);
+        ret = inflateInit(&infstream);
         if (ret != Z_OK)
         {
             fprintf(stderr, "error when initiate inflate(decompress)\n");
@@ -210,7 +221,7 @@ main(int argc, char **argv)
                         inflate(&infstream, Z_SYNC_FLUSH);
                     }
                     received_bytes = sizeof(outbuf) - infstream.avail_out;
-                    for (int k = 0; k < count; k++)
+                    for (int k = 0; k < received_bytes; k++)
                     {
                         char c = outbuf[k];
                         // read ^D from client
@@ -301,7 +312,7 @@ main(int argc, char **argv)
             if (pollfds[1].revents & POLLIN)
             {
                 // read from from_shell[0], process special characters, send to socket_fd
-                char buffer[BUFFER_SIZE];
+                unsigned char buffer[BUFFER_SIZE];
                 int count = read(from_shell[0], buffer, BUFFER_SIZE);
                 if (count < 0)
                 {
@@ -313,10 +324,34 @@ main(int argc, char **argv)
                     char c = buffer[k];
                     if (c == '\n')
                     {
-                        if (write(socket_fd, "\r\n", 2) < 0) {
-                            fprintf(stderr, "write error when writing cr lf to stdout: %s\n", strerror(errno));
-                            exit(1);
+                        unsigned char newline[2] = "\r\n";
+                        if (options.compress_flag)
+                        {
+                            unsigned char outbuf[BUFFER_SIZE];
+                            defstream.avail_in = 2;
+                            defstream.next_in = newline;
+                            defstream.avail_out = sizeof(outbuf);
+                            defstream.next_out = outbuf;
+
+                            while (defstream.avail_in > 0) {
+                                deflate(&defstream, Z_SYNC_FLUSH);
+                            }
+                            
+                            if (write(socket_fd, outbuf, sizeof(outbuf)-defstream.avail_out) < 0) {
+                                fprintf(stderr, "write error when writing cr lf to stdout: %s\n", strerror(errno));
+                                exit(1);
+                            }
+
                         }
+                        else
+                        {
+                            if (write(socket_fd, newline, 2) < 0) {
+                                fprintf(stderr, "write error when writing cr lf to stdout: %s\n", strerror(errno));
+                                exit(1);
+                            } 
+                        }
+                        
+                        
                     }
                     // terminate if receiving ^D
                     else if (c == 0x04)
@@ -325,9 +360,31 @@ main(int argc, char **argv)
                     }
                     else
                     {
-                        if (write(socket_fd, &c, 1) < 0) {
-                            fprintf(stderr, "write error when writing to stdout: %s\n", strerror(errno));
-                            exit(1);
+                        unsigned char inbuf[1] = {c};
+
+                        if (options.compress_flag)
+                        {
+                            unsigned char outbuf[BUFFER_SIZE];
+                            defstream.avail_in = 1;
+                            defstream.next_in = inbuf;
+                            defstream.avail_out = sizeof(outbuf);
+                            defstream.next_out = outbuf;
+
+                            while (defstream.avail_in > 0) {
+                                deflate(&defstream, Z_SYNC_FLUSH);
+                            }
+
+                            if (write(socket_fd, outbuf, sizeof(outbuf)-defstream.avail_out) < 0) {
+                                fprintf(stderr, "write error when writing cr lf to stdout: %s\n", strerror(errno));
+                                exit(1);
+                            }
+                        }
+                        else
+                        {
+                            if (write(socket_fd, &c, 1) < 0) {
+                                fprintf(stderr, "write error when writing to stdout: %s\n", strerror(errno));
+                                exit(1);
+                            }
                         }
                     }
                 }
@@ -383,6 +440,7 @@ main(int argc, char **argv)
         }
 
         if (options.compress_flag) {
+            deflateEnd(&defstream);
             inflateEnd(&infstream);
         }
 
