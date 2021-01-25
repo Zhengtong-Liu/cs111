@@ -287,8 +287,16 @@ main (int argc, char **argv)
     // free up the allocated data structures relating to (de)compression
     if (options.compress_flag)
     {
-        deflateEnd(&defstream);
-        deflateEnd(&infstream);
+        if (deflateEnd(&defstream) == Z_STREAM_ERROR)
+        {
+            fprintf(stderr, "error when closing the deflate z_stream\n");
+            restore_and_exit(1);
+        }
+        if (inflateEnd(&infstream) == Z_STREAM_ERROR)
+        {
+            fprintf(stderr, "error when closing the inflate z_stream\n");
+            restore_and_exit(1);
+        }
     }
 
     restore_and_exit(0);
