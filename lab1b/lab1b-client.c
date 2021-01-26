@@ -46,6 +46,8 @@ void terminal_setup ();
 via socket */
 int client_connect (char* host_name, unsigned int port);
 
+/* this function will closes the z_streams */
+void close_z_streams ();
 
 int
 main (int argc, char **argv)
@@ -107,7 +109,7 @@ main (int argc, char **argv)
         if (ret != Z_OK)
         {
             fprintf(stderr, "error when initiate inflate(decompress)\n");
-            exit(1);
+            restore_and_exit(1);
         }
     }
 
@@ -141,9 +143,22 @@ main (int argc, char **argv)
             {
                 char prefix[BUFFER_SIZE];
                 sprintf(prefix, "RECEIVED %d bytes: ", count);
-                write(log_fd, prefix, strlen(prefix));
-                write(log_fd, buffer, count);
-                write(log_fd, "\n", 1);
+
+                if (write(log_fd, prefix, strlen(prefix)) < 0)
+                {
+                    fprintf(stderr, "error when writing prefix to log file: %s\n", strerror(errno));
+                    restore_and_exit(1);
+                }
+                if (write(log_fd, buffer, count) < 0)
+                {
+                    fprintf(stderr, "error when writing buffer to log file: %s\n", strerror(errno));
+                    restore_and_exit(1);
+                }
+                if (write(log_fd, "\n", 1) < 0)
+                {
+                    fprintf(stderr, "error when writing newline to log file: %s\n", strerror(errno));
+                    restore_and_exit(1);
+                }
             }
 
             // if --compress option is specified, inflate(decompress) the data
@@ -195,14 +210,14 @@ main (int argc, char **argv)
                 {
                     if (write(1, "\r\n", 2) < 0) {
                         fprintf(stderr, "write error when writing <cr><lf> to stdout: %s\n", strerror(errno));
-                        exit(1);
+                        restore_and_exit(1);
                     }
                 }
                 else
                 {
                     if (write(1, &c, 1) < 0) {
                         fprintf(stderr, "write error when writing to stdout: %s\n", strerror(errno));
-                        exit(1);
+                        restore_and_exit(1);
                     }
                 }
                 
@@ -237,9 +252,21 @@ main (int argc, char **argv)
                 {
                     char prefix[BUFFER_SIZE];
                     sprintf(prefix, "SENT %d bytes: ", to_send_bytes);
-                    write(log_fd, prefix, strlen(prefix));
-                    write(log_fd, outbuf, to_send_bytes);
-                    write(log_fd, "\n", 1);
+                    if (write(log_fd, prefix, strlen(prefix)) < 0)
+                    {
+                        fprintf(stderr, "error when writing prefix to log file: %s\n", strerror(errno));
+                        restore_and_exit(1);
+                    }
+                    if (write(log_fd, outbuf, to_send_bytes) < 0)
+                    {
+                        fprintf(stderr, "error when writing buffer to log file: %s\n", strerror(errno));
+                        restore_and_exit(1);
+                    }
+                    if (write(log_fd, "\n", 1) < 0)
+                    {
+                        fprintf(stderr, "error when writing newline to log file: %s\n", strerror(errno));
+                        restore_and_exit(1);
+                    }
                 }
             }
             else
@@ -254,9 +281,21 @@ main (int argc, char **argv)
                 {
                     char prefix[BUFFER_SIZE];
                     sprintf(prefix, "SENT %d bytes: ", count);
-                    write(log_fd, prefix, strlen(prefix));
-                    write(log_fd, buffer, count);
-                    write(log_fd, "\n", 1);
+                    if (write(log_fd, prefix, strlen(prefix)) < 0)
+                    {
+                        fprintf(stderr, "error when writing prefix to log file: %s\n", strerror(errno));
+                        restore_and_exit(1);
+                    }
+                    if (write(log_fd, buffer, count) < 0)
+                    {
+                        fprintf(stderr, "error when writing buffer to log file: %s\n", strerror(errno));
+                        restore_and_exit(1);
+                    }
+                    if (write(log_fd, "\n", 1) < 0)
+                    {
+                        fprintf(stderr, "error when writing newline to log file: %s\n", strerror(errno));
+                        restore_and_exit(1);
+                    }
                 }
             }
             
@@ -286,18 +325,7 @@ main (int argc, char **argv)
     }
     // free up the allocated data structures relating to (de)compression
     if (options.compress_flag)
-    {
-        if (deflateEnd(&defstream) == Z_STREAM_ERROR)
-        {
-            fprintf(stderr, "error when closing the deflate z_stream\n");
-            restore_and_exit(1);
-        }
-        if (inflateEnd(&infstream) == Z_STREAM_ERROR)
-        {
-            fprintf(stderr, "error when closing the inflate z_stream\n");
-            restore_and_exit(1);
-        }
-    }
+        close_z_streams();
 
     restore_and_exit(0);
 }
@@ -419,4 +447,19 @@ int client_connect(char* host_name, unsigned int port)
     }
     return sockfd;
 
+}
+
+void close_z_streams ()
+{
+    if (deflateEnd(&defstream) == Z_STREAM_ERROR)
+    {
+        fprintf(stderr, "error when closing the deflate z_stream\n");
+        exit(1);
+    }
+
+    if (inflateEnd(&infstream) == Z_STREAM_ERROR)
+    {
+        fprintf(stderr, "error when closing the inflate z_stream\n");
+        exit(1);
+    }
 }

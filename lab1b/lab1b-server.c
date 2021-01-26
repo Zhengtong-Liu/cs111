@@ -48,6 +48,8 @@ void sigpipe_handler (int sig);
 be connected on certain port */
 int server_connect (unsigned int port_num);
 
+/* this function will closes the z_streams */
+void close_z_streams ();
 
 int
 main(int argc, char **argv)
@@ -460,18 +462,8 @@ main(int argc, char **argv)
         }
 
         // free up the allocated data structures relating to (de)compression
-        if (options.compress_flag) {
-            if (deflateEnd(&defstream) == Z_STREAM_ERROR)
-            {
-                fprintf(stderr, "error when closing the deflate z_stream\n");
-                exit(1);
-            }
-            if (inflateEnd(&infstream) == Z_STREAM_ERROR)
-            {
-                fprintf(stderr, "error when closing the inflate z_stream\n");
-                exit(1);
-            }
-        }
+        if (options.compress_flag)
+            close_z_streams();
 
         shut_down();
     }
@@ -606,4 +598,19 @@ int server_connect (unsigned int port_num)
         exit(1);
     }
     return new_fd;
+}
+
+void close_z_streams ()
+{
+    if (deflateEnd(&defstream) == Z_STREAM_ERROR)
+    {
+        fprintf(stderr, "error when closing the deflate z_stream\n");
+        exit(1);
+    }
+
+    if (inflateEnd(&infstream) == Z_STREAM_ERROR)
+    {
+        fprintf(stderr, "error when closing the inflate z_stream\n");
+        exit(1);
+    }
 }
