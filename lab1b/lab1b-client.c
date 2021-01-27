@@ -26,7 +26,7 @@ struct opts {
     bool compress_flag;
     bool log_flag;
 };
-int BUFFER_SIZE = 256;
+int BUFFER_SIZE = 512;
 z_stream defstream;
 z_stream infstream;
 
@@ -62,6 +62,9 @@ main (int argc, char **argv)
 
     // set up terminal and get the socket file descriptor
     terminal_setup();
+
+    // get the socket file descriptor, note that it is a valid fd
+    // since that is already checked in the server_connect function
     int socket_fd = client_connect("localhost", options.port_num);
     
 

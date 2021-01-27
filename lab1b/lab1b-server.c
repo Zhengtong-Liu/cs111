@@ -5,7 +5,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
-#include <termios.h>
 #include <unistd.h>
 #include <getopt.h>
 #include <poll.h>
@@ -19,12 +18,11 @@
 #include <netdb.h>
 #include <zlib.h>
 
-struct termios tattr;
 int pid, socket_fd;
 int to_shell[2];
 int from_shell[2];
 bool to_shell_close = false;
-int BUFFER_SIZE = 256;
+int BUFFER_SIZE = 512;
 z_stream defstream;
 z_stream infstream;
 
@@ -62,7 +60,8 @@ main(int argc, char **argv)
         exit(1);
     }
 
-    // get the socket file descriptor
+    // get the socket file descriptor, note that it is a valid fd
+    // since that is already checked in the server_connect function
     socket_fd = server_connect(options.port_num);
 
     // register SIGPIPE handler
@@ -322,8 +321,6 @@ main(int argc, char **argv)
                         }
                     }
                 }
-                
-
 
             }
 
