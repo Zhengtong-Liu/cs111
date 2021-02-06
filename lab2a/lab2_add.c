@@ -52,6 +52,7 @@ main (int argc, char **argv)
     long threads[thread];
     pthread_t pthreads[thread];
     sync_type = options.sync_type;
+    yield = options.opt_yield;
 
     if (sync_type == 'm') pthread_mutex_init(&mutex, NULL);
 
@@ -90,9 +91,43 @@ main (int argc, char **argv)
     long operations = thread * iteration * 2;
     long average_time = diff / operations;
 
+    if (yield)
+    {
+        switch (sync_type)
+        {
+        case 'm':
+            fprintf(stdout, "add-yield-m, %ld, %ld, %ld, %ld, %ld, %lld\n", thread, iteration, operations, diff, average_time, sum);
+            break;
+        case 's':
+            fprintf(stdout, "add-yield-s, %ld, %ld, %ld, %ld, %ld, %lld\n", thread, iteration, operations, diff, average_time, sum);
+            break;
+        case 'c':
+            fprintf(stdout, "add-yield-c, %ld, %ld, %ld, %ld, %ld, %lld\n", thread, iteration, operations, diff, average_time, sum);
+            break;
+        default:
+            fprintf(stdout, "add-yield-none, %ld, %ld, %ld, %ld, %ld, %lld\n", thread, iteration, operations, diff, average_time, sum);
+            break;
+        }
+    }
+    else
+    {
+        switch (sync_type)
+        {
+        case 'm':
+            fprintf(stdout, "add-m, %ld, %ld, %ld, %ld, %ld, %lld\n", thread, iteration, operations, diff, average_time, sum);
+            break;
+        case 's':
+            fprintf(stdout, "add-s, %ld, %ld, %ld, %ld, %ld, %lld\n", thread, iteration, operations, diff, average_time, sum);
+            break;
+        case 'c':
+            fprintf(stdout, "add-c, %ld, %ld, %ld, %ld, %ld, %lld\n", thread, iteration, operations, diff, average_time, sum);
+            break;
+        default:
+            fprintf(stdout, "add-none, %ld, %ld, %ld, %ld, %ld, %lld\n", thread, iteration, operations, diff, average_time, sum);
+            break;
+        }
+    }
     
-    fprintf(stdout, "add-none, %ld, %ld, %ld, %ld, %ld, %lld\n", thread, iteration, operations, diff, average_time, sum);
-    fprintf(stdout, "add-yield-none, %ld, %ld, %ld, %ld, %ld, %lld\n", thread, iteration, operations, diff, average_time, sum);
 }
 
 bool read_options (int argc, char* argv[], struct opts* opts)
