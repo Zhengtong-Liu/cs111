@@ -4,7 +4,7 @@
 
 default: lab2_add 
 
-lab2a-add: lab2_add.c
+lab2_add: lab2_add.c
 	gcc -Og -g3 -Wall -Wextra -lpthread lab2_add.c -o $@
 
 
