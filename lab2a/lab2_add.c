@@ -240,5 +240,5 @@ void atomic_add(long long *pointer, long long value)
             sched_yield();
         }
         sum = prev + value;
-    } while (__sync__bool_compare_and_swap(pointer, prev, sum) == false);
+    } while (__sync_bool_compare_and_swap(pointer, prev, sum) == false);
 }
