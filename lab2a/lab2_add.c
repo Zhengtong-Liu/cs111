@@ -50,7 +50,7 @@ main (int argc, char **argv)
     long thread = options.th_num;
     long iteration = options.it_num;
     long threads[thread];
-    pthread_t *pthreads = malloc(thread * sizeof(pthread_t));
+    pthread_t pthreads[thread];
     sync_type = options.sync_type;
     yield = options.opt_yield;
 
