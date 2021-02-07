@@ -1,3 +1,7 @@
+// NAME: Zhengtong Liu
+// EMAIL: ericliu2023@g.ucla.edu
+// ID: 505375562
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -7,6 +11,7 @@
 #include <errno.h>
 #include <pthread.h>
 #include <sched.h>
+#include <signal.h>
 #include "SortedList.h"
 
 struct opts {
@@ -16,7 +21,7 @@ struct opts {
     char sync_type;
 };
 
-long long sum = 0;
+
 char* yield = NULL;
 char sync_type;
 SortedList_t *listhead;
@@ -29,6 +34,7 @@ long lock = 0;
 
 bool read_options (int argc, char* argv[], struct opts* opts);
 void *thread_worker (void *arg);
+void segfault_handler ();
 static inline long get_nanosec_from_timespec (struct timespec* spec)
 {
     long ret = spec -> tv_sec;
@@ -39,6 +45,7 @@ static inline long get_nanosec_from_timespec (struct timespec* spec)
 int 
 main (int argc, char **argv)
 {
+    signal(SIGSEGV, segfault_handler);
     struct opts options;
     if (! read_options(argc, argv, &options))
     {
@@ -52,7 +59,19 @@ main (int argc, char **argv)
     pthread_t *pthreads = malloc(thread * sizeof(pthread_t));
     sync_type = options.sync_type;
     yield = options.yield_type;
-
+    
+    if (yield != NULL)
+    {
+        int len_yield = strlen(yield);
+        for (int i = 0; i < len_yield; i++) {
+            if (yield[i] == 'i')
+                opt_yield |= INSERT_YIELD;
+            else if (yield[i] == 'd')
+                opt_yield |= DELETE_YIELD;
+            else if (yield[i] == 'l')
+                opt_yield |= LOOKUP_YIELD;
+        }
+    }
     printf("options are thread: %ld, iterations: %ld, sync type: %c, yield type: %s\n", thread, iteration, sync_type, yield);
 
     // initialize empty list
@@ -111,22 +130,53 @@ main (int argc, char **argv)
     long operations = thread * iteration * 3;
     long average_time = diff / operations;
 
-        
-        switch (sync_type)
-        {
-        case 'm':
-            fprintf(stdout, "add-yield-m, %ld, %ld, 1, %ld, %ld, %ld\n", thread, iteration, operations, diff, average_time);
-            break;
-        case 's':
-            fprintf(stdout, "add-yield-s, %ld, %ld, 1, %ld, %ld, %ld\n", thread, iteration, operations, diff, average_time);
-            break;
-        default:
-            fprintf(stdout, "add-yield-none, %ld, %ld, 1, %ld, %ld, %ld\n", thread, iteration, operations, diff, average_time);
-            break;
-        }
-    
+    fprintf(stdout, "list-");
+    switch (opt_yield)
+    {
+    case 0:
+        fprintf(stdout, "none-");
+        break;
+    case 1:
+        fprintf(stdout, "i-");
+        break;
+    case 2:
+        fprintf(stdout, "d-");
+        break;
+    case 3:
+        fprintf(stdout, "id-");
+        break;
+    case 4:
+        fprintf(stdout, "l-");
+        break;
+    case 5:
+        fprintf(stdout, "il-");
+        break;
+    case 6:
+        fprintf(stdout, "dl-");
+        break;
+    case 7:
+        fprintf(stdout, "idl-");
+    default:
+        break;
+    }   
+    switch (sync_type)
+    {
+    case 'm':
+        fprintf(stdout, "m");
+        break;
+    case 's':
+        fprintf(stdout, "s");
+        break;
+    default:
+        fprintf(stdout, "none");
+        break;
+    }
+    fprintf(stdout, " %ld, %ld, 1, %ld, %ld, %ld\n", thread, iteration, operations, diff, average_time);
+
     free(pool);
     free(threads);
+
+    exit(0);
 }
 
 bool read_options (int argc, char* argv[], struct opts* opts)
@@ -316,4 +366,10 @@ void *thread_worker(void *arg)
     }
     
     return arg;
+}
+
+void segfault_handler ()
+{
+    fprintf(stderr, "An segmentation fault has been invoked.\n");
+    exit(2);
 }

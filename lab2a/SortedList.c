@@ -1,6 +1,13 @@
+// NAME: Zhengtong Liu
+// EMAIL: ericliu2023@g.ucla.edu
+// ID: 505375562
+
 #include <stdlib.h>
 #include <string.h>
 #include "SortedList.h"
+#include <sched.h>
+
+int opt_yield = 0;
 
 void SortedList_insert(SortedList_t *list, SortedListElement_t *element)
 {
@@ -10,6 +17,9 @@ void SortedList_insert(SortedList_t *list, SortedListElement_t *element)
     //error handling
     while ((list_ptr != list) && (strcmp(element -> key, list_ptr -> key) > 0))
         list_ptr = list_ptr -> next;
+    if (opt_yield & INSERT_YIELD) {
+        sched_yield();
+    }
     element -> next = list_ptr;
     element -> prev = list_ptr -> prev;
     list_ptr -> prev -> next = element;
@@ -19,17 +29,20 @@ void SortedList_insert(SortedList_t *list, SortedListElement_t *element)
 
 int SortedList_delete( SortedListElement_t *element)
 {
-    if (element -> key == NULL)
-        return 1;
-    else if ((element -> prev == NULL) || (element -> next == NULL))
-        return 1;
-    else if ((element -> prev -> next != element) || (element -> next -> prev != element))
+    // if (element -> key == NULL)
+    //     return 1;
+    // else if ((element -> prev == NULL) || (element -> next == NULL))
+    //     return 1;
+    // else 
+    if ((element -> prev -> next != element) || (element -> next -> prev != element))
         return 1;
     else
     {
+        if (opt_yield & DELETE_YIELD) {
+            sched_yield();
+        }
         element -> prev -> next = element -> next;
         element -> next -> prev = element -> prev;
-        // free(element);
         return 0;
     }
     
@@ -38,7 +51,11 @@ int SortedList_delete( SortedListElement_t *element)
 SortedListElement_t *SortedList_lookup(SortedList_t *list, const char *key)
 {
     SortedListElement_t *list_ptr = list -> next;
-    if (key == NULL) return NULL;
+
+    if (opt_yield & LOOKUP_YIELD) {
+        sched_yield();
+    }
+
     while (list_ptr != list)
     {
         if (strcmp(key, list_ptr -> key) == 0)
@@ -52,12 +69,17 @@ int SortedList_length(SortedList_t *list)
 {
     int len = 0;
     SortedListElement_t* list_ptr = list -> next;
-    if (list_ptr -> prev != list) return -1;
+    // if (list_ptr -> prev != list) return -1;
+    if (opt_yield & LOOKUP_YIELD) {
+        sched_yield();
+    }
+
     while (list_ptr != list)
     {
-        if ((list_ptr -> next == NULL) || (list_ptr -> prev == NULL))
-            return -1;
-        else if ((list_ptr -> next -> prev != list_ptr) || (list_ptr -> prev -> next != list_ptr))
+        // if ((list_ptr -> next == NULL) || (list_ptr -> prev == NULL))
+        //     return -1;
+        // else 
+        if ((list_ptr -> next -> prev != list_ptr) || (list_ptr -> prev -> next != list_ptr))
             return -1;
         else
         {
