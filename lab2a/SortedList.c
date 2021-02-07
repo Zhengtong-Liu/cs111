@@ -13,7 +13,7 @@ void SortedList_insert(SortedList_t *list, SortedListElement_t *element)
 {
     if ((list == NULL) || (element == NULL)) return;
 
-    SortedListElement_t *list_ptr = list -> next;
+    SortedListElement_t *list_ptr = list;
     //error handling
     while ((list_ptr != list) && (strcmp(element -> key, list_ptr -> key) > 0))
         list_ptr = list_ptr -> next;
