@@ -19,6 +19,7 @@ tests: build
 
 graphs: tests
 	gnuplot ./lab2_add.gp
+	gnuplot ./lab2_list.gp
 
 submission-files = *.c *.h README Makefile *.csv *.png test.sh *.gp
 
