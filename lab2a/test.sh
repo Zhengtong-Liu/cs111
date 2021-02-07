@@ -109,7 +109,7 @@ for th_num in 1, 2, 4, 8, 12
 do
     for it_num in 1, 2, 4, 8, 16, 32
     do
-        ./lab2_list --threads=$th_num --iterations=$it_num -yield=i >> lab2_list.csv
+        ./lab2_list --threads=$th_num --iterations=$it_num --yield=i >> lab2_list.csv
     done
 done
 echo ""
@@ -119,7 +119,7 @@ for th_num in 1, 2, 4, 8, 12
 do
     for it_num in 1, 2, 4, 8, 16, 32
     do
-        ./lab2_list --threads=$th_num --iterations=$it_num -yield=d >> lab2_list.csv
+        ./lab2_list --threads=$th_num --iterations=$it_num --yield=d >> lab2_list.csv
     done
 done
 echo ""
@@ -129,7 +129,7 @@ for th_num in 1, 2, 4, 8, 12
 do
     for it_num in 1, 2, 4, 8, 16, 32
     do
-        ./lab2_list --threads=$th_num --iterations=$it_num -yield=il >> lab2_list.csv
+        ./lab2_list --threads=$th_num --iterations=$it_num --yield=il >> lab2_list.csv
     done
 done
 echo ""
@@ -139,7 +139,7 @@ for th_num in 1, 2, 4, 8, 12
 do
     for it_num in 1, 2, 4, 8, 16, 32
     do
-        ./lab2_list --threads=$th_num --iterations=$it_num -yield=dl >> lab2_list.csv
+        ./lab2_list --threads=$th_num --iterations=$it_num --yield=dl >> lab2_list.csv
     done
 done
 echo ""
@@ -149,7 +149,7 @@ for th_num in 1, 2, 4, 8, 12
 do
     for it_num in 1, 2, 4, 8, 16, 32
     do
-        ./lab2_list --threads=$th_num --iterations=$it_num -yield=i --sync=m >> lab2_list.csv
+        ./lab2_list --threads=$th_num --iterations=$it_num --yield=i --sync=m >> lab2_list.csv
     done
 done
 echo ""
@@ -159,7 +159,7 @@ for th_num in 1, 2, 4, 8, 12
 do
     for it_num in 1, 2, 4, 8, 16, 32
     do
-        ./lab2_list --threads=$th_num --iterations=$it_num -yield=d --sync=m >> lab2_list.csv
+        ./lab2_list --threads=$th_num --iterations=$it_num --yield=d --sync=m >> lab2_list.csv
     done
 done
 echo ""
@@ -169,7 +169,7 @@ for th_num in 1, 2, 4, 8, 12
 do
     for it_num in 1, 2, 4, 8, 16, 32
     do
-        ./lab2_list --threads=$th_num --iterations=$it_num -yield=il --sync=m >> lab2_list.csv
+        ./lab2_list --threads=$th_num --iterations=$it_num --yield=il --sync=m >> lab2_list.csv
     done
 done
 echo ""
@@ -179,7 +179,7 @@ for th_num in 1, 2, 4, 8, 12
 do
     for it_num in 1, 2, 4, 8, 16, 32
     do
-        ./lab2_list --threads=$th_num --iterations=$it_num -yield=dl --sync=m >> lab2_list.csv
+        ./lab2_list --threads=$th_num --iterations=$it_num --yield=dl --sync=m >> lab2_list.csv
     done
 done
 echo ""
@@ -189,7 +189,7 @@ for th_num in 1, 2, 4, 8, 12
 do
     for it_num in 1, 2, 4, 8, 16, 32
     do
-        ./lab2_list --threads=$th_num --iterations=$it_num -yield=i --sync=s >> lab2_list.csv
+        ./lab2_list --threads=$th_num --iterations=$it_num --yield=i --sync=s >> lab2_list.csv
     done
 done
 echo ""
@@ -199,7 +199,7 @@ for th_num in 1, 2, 4, 8, 12
 do
     for it_num in 1, 2, 4, 8, 16, 32
     do
-        ./lab2_list --threads=$th_num --iterations=$it_num -yield=d --sync=s >> lab2_list.csv
+        ./lab2_list --threads=$th_num --iterations=$it_num --yield=d --sync=s >> lab2_list.csv
     done
 done
 echo ""
@@ -209,7 +209,7 @@ for th_num in 1, 2, 4, 8, 12
 do
     for it_num in 1, 2, 4, 8, 16, 32
     do
-        ./lab2_list --threads=$th_num --iterations=$it_num -yield=il --sync=s >> lab2_list.csv
+        ./lab2_list --threads=$th_num --iterations=$it_num --yield=il --sync=s >> lab2_list.csv
     done
 done
 echo ""
@@ -219,7 +219,7 @@ for th_num in 1, 2, 4, 8, 12
 do
     for it_num in 1, 2, 4, 8, 16, 32
     do
-        ./lab2_list --threads=$th_num --iterations=$it_num -yield=dl --sync=s >> lab2_list.csv
+        ./lab2_list --threads=$th_num --iterations=$it_num --yield=dl --sync=s >> lab2_list.csv
     done
 done
 echo ""
