@@ -171,7 +171,7 @@ main (int argc, char **argv)
         fprintf(stdout, "none");
         break;
     }
-    fprintf(stdout, " %ld, %ld, 1, %ld, %ld, %ld\n", thread, iteration, operations, diff, average_time);
+    fprintf(stdout, ",%ld,%ld,1,%ld,%ld,%ld\n", thread, iteration, operations, diff, average_time);
 
     for (int k = 0; k < thread*iteration; k++)
         free((void *)pool[k].key);
