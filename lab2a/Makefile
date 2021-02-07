@@ -23,5 +23,5 @@ graphs: tests
 
 submission-files = *.c *.h README Makefile *.csv *.png test.sh *.gp
 
-dist: build graphs $(submission-files)
+dist: graphs
 	tar -czvf lab2a-505375562.tar.gz $(submission-files)
