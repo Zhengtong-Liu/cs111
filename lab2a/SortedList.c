@@ -20,8 +20,8 @@ void SortedList_insert(SortedList_t *list, SortedListElement_t *element)
     if (opt_yield & INSERT_YIELD) {
         sched_yield();
     }
-    element -> next = list_ptr;
     element -> prev = list_ptr -> prev;
+    element -> next = list_ptr;
     list_ptr -> prev -> next = element;
     list_ptr -> prev = element;
     return;

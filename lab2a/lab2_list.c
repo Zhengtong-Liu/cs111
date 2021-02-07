@@ -72,7 +72,7 @@ main (int argc, char **argv)
                 opt_yield |= LOOKUP_YIELD;
         }
     }
-    printf("options are thread: %ld, iterations: %ld, sync type: %c, yield type: %s\n", thread, iteration, sync_type, yield);
+    // printf("options are thread: %ld, iterations: %ld, sync type: %c, yield type: %s\n", thread, iteration, sync_type, yield);
 
     // initialize empty list
     listhead = (SortedList_t *) malloc(sizeof(SortedList_t));
@@ -173,9 +173,15 @@ main (int argc, char **argv)
     }
     fprintf(stdout, " %ld, %ld, 1, %ld, %ld, %ld\n", thread, iteration, operations, diff, average_time);
 
+    for (int k = 0; k < thread*iteration; k++)
+        free((void *)pool[k].key);
+
     free(pool);
     free(threads);
-
+    if (sync_type == 'm')
+    {
+        pthread_mutex_destroy(&mutex);
+    }
     exit(0);
 }
 
