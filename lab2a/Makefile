@@ -22,7 +22,7 @@ tests:
 graphs:
 	gnuplot ./lab2_add.gp
 
-submission-files = *.c *.h README Makefile
+submission-files = *.c *.h README Makefile *.csv *.png
 
 lab2a-505375562.tar.gz: $(submission-files)
 	tar -czvf $@ $(submission-files)
