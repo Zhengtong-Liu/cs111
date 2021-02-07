@@ -50,7 +50,7 @@ main (int argc, char **argv)
     long thread = options.th_num;
     long iteration = options.it_num;
     long threads[thread];
-    pthread_t pthreads[thread];
+    pthread_t *pthreads = malloc(thread * sizeof(pthread_t));
     sync_type = options.sync_type;
     yield = options.opt_yield;
 
@@ -127,7 +127,7 @@ main (int argc, char **argv)
             break;
         }
     }
-    
+    free(threads);
 }
 
 bool read_options (int argc, char* argv[], struct opts* opts)
@@ -167,7 +167,7 @@ bool read_options (int argc, char* argv[], struct opts* opts)
             c = optarg[0];
             if (c != 'm' && c != 's' && c != 'c')
             {
-                fprintf(stderr, "Unrecognized sync type for --sync: %c\n", c);
+                fprintf(stderr, "unrecognized sync type for --sync=[msc]: %c\n", c);
                 exit(1);
             }
             opts -> sync_type = optarg[0];
