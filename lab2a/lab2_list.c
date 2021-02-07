@@ -85,12 +85,10 @@ main (int argc, char **argv)
     srand((unsigned int) time(NULL));
     for (int k = 0; k < thread * iteration; k++)
     {
-        char *key = (char *) malloc(10 * sizeof(char));
-        for (int j = 0; j < 9; j++) {
-            // generate a random char from '0' to 'z'
-            key[j] = rand() % 75 + 48;
-        }
-        key[9] = '\0';
+        char *key = (char *) malloc(2 * sizeof(char));
+        // generate a random char from '0' to 'z'
+        key[0] = rand() % 75 + 48;
+        key[1] = '\0';
         pool[k].key = key;
     }
     if (sync_type == 'm') pthread_mutex_init(&mutex, NULL);
@@ -106,7 +104,8 @@ main (int argc, char **argv)
     }
 
     for (i = 0; i < thread; i++) {
-        if ((threads[i] = pthread_create(&pthreads[i], NULL, thread_worker, &i)) < 0)
+        threads[i] = i;
+        if (pthread_create(&pthreads[i], NULL, thread_worker, &threads[i]) < 0)
         {
             fprintf(stderr, "error when trying to create new thread\n");
             exit(1);
@@ -268,7 +267,6 @@ bool read_options (int argc, char* argv[], struct opts* opts)
 
 void *thread_worker(void *arg)
 {
- 
     long thread_num = *((long*)arg);
     long start_index = thread_num * iteration;
     for (long i = start_index; i < start_index + iteration; i++)
@@ -285,7 +283,7 @@ void *thread_worker(void *arg)
             SortedList_insert(listhead, &pool[i]);
             __sync_lock_release(&lock);
         }
-        else
+        else if (sync_type != 'm' && sync_type != 's')
             SortedList_insert(listhead, &pool[i]);
     }
     long len = 0;
@@ -311,7 +309,7 @@ void *thread_worker(void *arg)
         }
         __sync_lock_release(&lock);
     }
-    else
+    else if (sync_type != 'm' && sync_type != 's')
     {
         len = SortedList_length(listhead);
         if (len < 0)
@@ -355,7 +353,7 @@ void *thread_worker(void *arg)
             }
             __sync_lock_release(&lock);
         }
-        else
+        else if (sync_type != 'm' && sync_type != 's')
         {
             element = SortedList_lookup(listhead, pool[i].key);
             if (element == NULL)

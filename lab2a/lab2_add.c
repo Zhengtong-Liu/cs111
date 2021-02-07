@@ -127,6 +127,12 @@ main (int argc, char **argv)
             break;
         }
     }
+
+    if (sync_type == 'm')
+    {
+        pthread_mutex_destroy(&mutex);
+    }
+    exit(0);
 }
 
 bool read_options (int argc, char* argv[], struct opts* opts)
