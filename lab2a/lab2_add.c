@@ -127,7 +127,6 @@ main (int argc, char **argv)
             break;
         }
     }
-    free(threads);
 }
 
 bool read_options (int argc, char* argv[], struct opts* opts)

@@ -177,7 +177,7 @@ main (int argc, char **argv)
         free((void *)pool[k].key);
 
     free(pool);
-    free(threads);
+    free(listhead);
     if (sync_type == 'm')
     {
         pthread_mutex_destroy(&mutex);
