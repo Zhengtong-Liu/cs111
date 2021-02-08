@@ -24,12 +24,16 @@ pthread_mutex_t mutex;
 // for spin lock
 long lock = 0;
 
+/* read and parse command line options */
 bool read_options (int argc, char* argv[], struct opts* opts);
+/* add with and without lock */
 void add(long long *pointer, long long value);
 void mutex_lock_add(long long *pointer, long long value);
 void spin_lock_add(long long *pointer, long long value);
 void atomic_add(long long *pointer, long long value);
+/* thread worker function */
 void *thread_worker (void *arg);
+/* calculate time difference */
 static inline long get_nanosec_from_timespec (struct timespec* spec)
 {
     long ret = spec -> tv_sec;
@@ -47,25 +51,29 @@ main (int argc, char **argv)
         exit(1);
     }
 
+    // get parameters from comnand line
     long thread = options.th_num;
     long iteration = options.it_num;
-    long threads[thread];
-    pthread_t pthreads[thread];
     sync_type = options.sync_type;
     yield = options.opt_yield;
 
+    // for creating threads
+    long threads[thread];
+    pthread_t pthreads[thread];
+
     if (sync_type == 'm') pthread_mutex_init(&mutex, NULL);
 
+    // start recording time
     struct timespec begin, end;
     long diff = 0;
 
-    int i;
+    long i;
     if (clock_gettime(CLOCK_MONOTONIC, &begin) < 0)
     {
         fprintf(stderr, "error when get time (begin): %s\n", strerror(errno));
         exit(1);
     }
-
+    // create threads
     for (i = 0; i < options.th_num; i++) {
         if ((threads[i] = pthread_create(&pthreads[i], NULL, thread_worker, &iteration)) < 0)
         {
@@ -73,6 +81,7 @@ main (int argc, char **argv)
             exit(1);
         }  
     }
+    // join threads
     for (i = 0; i < thread; i++) {
         if (pthread_join(pthreads[i], NULL) < 0)
         {
@@ -87,51 +96,36 @@ main (int argc, char **argv)
         exit(1);
     }
 
+    // get time difference
     diff = get_nanosec_from_timespec(&end) - get_nanosec_from_timespec(&begin);
     long operations = thread * iteration * 2;
     long average_time = diff / operations;
 
+    // print outputs to csv
     if (yield)
-    {
-        switch (sync_type)
-        {
-        case 'm':
-            fprintf(stdout, "add-yield-m,%ld,%ld,%ld,%ld,%ld,%lld\n", thread, iteration, operations, diff, average_time, sum);
-            break;
-        case 's':
-            fprintf(stdout, "add-yield-s,%ld,%ld,%ld,%ld,%ld,%lld\n", thread, iteration, operations, diff, average_time, sum);
-            break;
-        case 'c':
-            fprintf(stdout, "add-yield-c,%ld,%ld,%ld,%ld,%ld,%lld\n", thread, iteration, operations, diff, average_time, sum);
-            break;
-        default:
-            fprintf(stdout, "add-yield-none,%ld,%ld,%ld,%ld,%ld,%lld\n", thread, iteration, operations, diff, average_time, sum);
-            break;
-        }
-    }
+        fprintf(stdout, "add-yield-");
     else
+        fprintf(stdout, "add-");
+    
+    switch (sync_type)
     {
-        switch (sync_type)
-        {
-        case 'm':
-            fprintf(stdout, "add-m,%ld,%ld,%ld,%ld,%ld,%lld\n", thread, iteration, operations, diff, average_time, sum);
-            break;
-        case 's':
-            fprintf(stdout, "add-s,%ld,%ld,%ld,%ld,%ld,%lld\n", thread, iteration, operations, diff, average_time, sum);
-            break;
-        case 'c':
-            fprintf(stdout, "add-c,%ld,%ld,%ld,%ld,%ld,%lld\n", thread, iteration, operations, diff, average_time, sum);
-            break;
-        default:
-            fprintf(stdout, "add-none,%ld,%ld,%ld,%ld,%ld,%lld\n", thread, iteration, operations, diff, average_time, sum);
-            break;
-        }
+    case 'm':
+        fprintf(stdout, "m");
+        break;
+    case 's':
+        fprintf(stdout, "s");
+        break;
+    case 'c':
+        fprintf(stdout, "c");
+        break;
+    default:
+        fprintf(stdout, "none");
+        break;
     }
 
-    if (sync_type == 'm')
-    {
-        pthread_mutex_destroy(&mutex);
-    }
+    fprintf(stdout, ",%ld,%ld,%ld,%ld,%ld,%lld\n", thread, iteration, operations, diff, average_time, sum);
+
+    if (sync_type == 'm') pthread_mutex_destroy(&mutex);
     exit(0);
 }
 
@@ -201,6 +195,7 @@ bool read_options (int argc, char* argv[], struct opts* opts)
 
 void *thread_worker(void *arg)
 {
+    // add 1 iter many times with and without lock
     long iter = *((long*)arg), i = 0;
     for (i=0; i<iter; i++)
     {
@@ -220,7 +215,8 @@ void *thread_worker(void *arg)
             break;
         }
 
-    } 
+    }
+    // add -1 iter many times with and without lock
     for (i=0; i<iter; i++)
     {
        switch (sync_type)
