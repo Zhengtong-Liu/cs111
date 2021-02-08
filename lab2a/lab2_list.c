@@ -21,9 +21,11 @@ struct opts {
     char sync_type;
 };
 
-
+// yield type
 char* yield = NULL;
+// sync type
 char sync_type;
+// sorted list head and list elements pool
 SortedList_t *listhead;
 SortedListElement_t *pool;
 long iteration;
@@ -32,9 +34,13 @@ pthread_mutex_t mutex;
 // for spin lock
 long lock = 0;
 
+/* read and parse command line options */
 bool read_options (int argc, char* argv[], struct opts* opts);
+/* thread worker function */
 void *thread_worker (void *arg);
-void segfault_handler ();
+/* segmentation fault signal handler */
+void segfault_handler (int sig);
+/* get time difference */
 static inline long get_nanosec_from_timespec (struct timespec* spec)
 {
     long ret = spec -> tv_sec;
@@ -45,6 +51,7 @@ static inline long get_nanosec_from_timespec (struct timespec* spec)
 int 
 main (int argc, char **argv)
 {
+    // register a signal and get parameters from command line input
     signal(SIGSEGV, segfault_handler);
     struct opts options;
     if (! read_options(argc, argv, &options))
@@ -53,46 +60,70 @@ main (int argc, char **argv)
         exit(1);
     }
 
+    // thread is # of threads, iteration is # of iterations
     long thread = options.th_num;
     iteration = options.it_num;
+    // help to store the value pass to thread worker function
     long threads[thread];
+    // need thread number of pthreads
     pthread_t pthreads[thread];
+    // sync_type is none, m, or s; yield is none, or combinations of i, d, l
     sync_type = options.sync_type;
     yield = options.yield_type;
     
+    // if yield option has parameters, interpret the parameters
     if (yield != NULL)
     {
         int len_yield = strlen(yield);
         for (int i = 0; i < len_yield; i++) {
             if (yield[i] == 'i')
-                opt_yield |= INSERT_YIELD;
+                opt_yield = opt_yield | INSERT_YIELD;
             else if (yield[i] == 'd')
-                opt_yield |= DELETE_YIELD;
+                opt_yield = opt_yield | DELETE_YIELD;
             else if (yield[i] == 'l')
-                opt_yield |= LOOKUP_YIELD;
+                opt_yield = opt_yield | LOOKUP_YIELD;
         }
     }
-    // printf("options are thread: %ld, iterations: %ld, sync type: %c, yield type: %s\n", thread, iteration, sync_type, yield);
 
     // initialize empty list
     listhead = (SortedList_t *) malloc(sizeof(SortedList_t));
+    if (listhead == NULL)
+    {
+        fprintf(stderr, "cannot allocate memory for listhead\n");
+        exit(1);
+    }
     listhead -> prev = listhead;
     listhead -> next = listhead;
     listhead -> key = NULL;
 
+    // initialize sorted list elements pool
     pool = (SortedListElement_t *) malloc(thread * iteration * sizeof(SortedListElement_t));
+    if (pool == NULL)
+    {
+        fprintf(stderr, "cannot allocate memory for pool (storing sorted list elements)\n");
+        exit(1);
+    }
     // srand before calling the rand function
     srand((unsigned int) time(NULL));
+    // assign random keys to sorted list elements
     for (int k = 0; k < thread * iteration; k++)
     {
-        char *key = (char *) malloc(2 * sizeof(char));
+        char *key = (char *) malloc(10 * sizeof(char));
+        if (key == NULL)
+        {
+            fprintf(stderr, "cannot allocate memory for key (sorted list element key)\n");
+            exit(1);
+        }
         // generate a random char from '0' to 'z'
-        key[0] = rand() % 75 + 48;
-        key[1] = '\0';
+        for (int j = 0; j < 9; j++)
+            key[j] = rand() % 75 + 48;
+        key[9] = '\0';
         pool[k].key = key;
     }
+    // initialize mutex lock if needed
     if (sync_type == 'm') pthread_mutex_init(&mutex, NULL);
 
+    // start recording time
     struct timespec begin, end;
     long diff = 0;
 
@@ -103,14 +134,16 @@ main (int argc, char **argv)
         exit(1);
     }
 
+    // create threads
     for (i = 0; i < thread; i++) {
         threads[i] = i;
         if (pthread_create(&pthreads[i], NULL, thread_worker, &threads[i]) < 0)
         {
             fprintf(stderr, "error when trying to create new thread\n");
             exit(1);
-        }  
+        }
     }
+    // join threads
     for (i = 0; i < thread; i++) {
         if (pthread_join(pthreads[i], NULL) < 0)
         {
@@ -125,10 +158,12 @@ main (int argc, char **argv)
         exit(1);
     }
 
+    // calculate time difference
     diff = get_nanosec_from_timespec(&end) - get_nanosec_from_timespec(&begin);
     long operations = thread * iteration * 3;
     long average_time = diff / operations;
 
+    // print outputs to csv
     fprintf(stdout, "list-");
     switch (opt_yield)
     {
@@ -175,12 +210,10 @@ main (int argc, char **argv)
     for (int k = 0; k < thread*iteration; k++)
         free((void *)pool[k].key);
 
+    // free memory, finish mutex lock if needed and exit without error
     free(pool);
     free(listhead);
-    if (sync_type == 'm')
-    {
-        pthread_mutex_destroy(&mutex);
-    }
+    if (sync_type == 'm') pthread_mutex_destroy(&mutex);
     exit(0);
 }
 
@@ -245,7 +278,7 @@ bool read_options (int argc, char* argv[], struct opts* opts)
             break;
         default:
             fprintf(stderr, "%s: Incorrect usage\n", argv[0]);
-            fprintf(stderr, "usage: ./lab2a [--threads=th_num --iterations=it_num --yield]\n");
+            fprintf(stderr, "usage: ./lab2a [--threads=th_num --iterations=it_num --yield=[idl] --sync=[ms]]\n");
             exit(1);
         }
     }
@@ -269,6 +302,7 @@ void *thread_worker(void *arg)
 {
     long thread_num = *((long*)arg);
     long start_index = thread_num * iteration;
+    // insert elements with or without lock
     for (long i = start_index; i < start_index + iteration; i++)
     {
         if (sync_type == 'm')
@@ -286,6 +320,7 @@ void *thread_worker(void *arg)
         else if (sync_type != 'm' && sync_type != 's')
             SortedList_insert(listhead, &pool[i]);
     }
+    // get sorted list length with and without lock
     long len = 0;
     if (sync_type == 'm')
     {
@@ -319,6 +354,7 @@ void *thread_worker(void *arg)
         }
     }
 
+    // look up and delete sorted list elements with and without lock
     SortedListElement_t *element;
     for (long i = start_index; i < start_index + iteration; i++) {
         if (sync_type == 'm')
@@ -372,8 +408,11 @@ void *thread_worker(void *arg)
     return arg;
 }
 
-void segfault_handler ()
+void segfault_handler (int sig)
 {
-    fprintf(stderr, "An segmentation fault has been invoked.\n");
-    exit(2);
+    if (sig == SIGSEGV)
+    {
+        fprintf(stderr, "An segmentation fault has been invoked.\n");
+        exit(2);
+    }
 }
