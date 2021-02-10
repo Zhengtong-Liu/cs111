@@ -121,7 +121,12 @@ main (int argc, char **argv)
         pool[k].key = key;
     }
     // initialize mutex lock if needed
-    if (sync_type == 'm') pthread_mutex_init(&mutex, NULL);
+       if (sync_type == 'm') {
+        if (pthread_mutex_init(&mutex, NULL) != 0) {
+            fprintf(stderr, "error when initializing the mutex lock\n");
+            exit(1);
+        }
+    }
 
     // start recording time
     struct timespec begin, end;

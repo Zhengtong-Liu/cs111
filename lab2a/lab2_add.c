@@ -1,3 +1,7 @@
+// NAME: Zhengtong Liu
+// EMAIL: ericliu2023@g.ucla.edu
+// ID: 505375562
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -61,7 +65,12 @@ main (int argc, char **argv)
     long threads[thread];
     pthread_t pthreads[thread];
 
-    if (sync_type == 'm') pthread_mutex_init(&mutex, NULL);
+    if (sync_type == 'm') {
+        if (pthread_mutex_init(&mutex, NULL) != 0) {
+            fprintf(stderr, "error when initializing the mutex lock\n");
+            exit(1);
+        }
+    } 
 
     // start recording time
     struct timespec begin, end;

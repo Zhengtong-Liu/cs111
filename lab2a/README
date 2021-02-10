@@ -63,22 +63,29 @@ larger than that in Part-2 (sorted lists). One possible explanation is that the 
 would stay locked for a longer of time (since the operations for the sorted list cost more time than simple addition),
 there would be fewer context switches and thus less overhead for Part-2. Thus, the time per operation would
 not grow so fast as the number of threads grows for Part-2.
-    Note that the shape of the curve for Part-1 (adds) and Part-2 (sorted lists) is both increasing. Since there are more threads,
-the contention of a lock would be higher and the overhead caused by the high contention of a lock would increases the time per operation. 
+    Note that the shape of the curve for Part-1 (adds) and Part-2 (sorted lists) is both increasing. 
+Since there are more threads, the contention of a lock would be higher and the overhead caused by the high 
+contention of a lock would increases the time per operation. 
     While the rate of increase decreases as the number of iterations increases for the curve in Part-1 (adds),
-the rate of increase does not change much for that for Part-2 (sorted lists). One possible explanation is that the overhead caused by
-the high contention of a lock would get stable as the number of iterations increases in Part-1. However, as explained in this first part,
-the threads would stay locked for a longer time in Part-2 (sorted list) and the there is less overhead, so the rate of change is nearly constant,
+the rate of increase does not change much for that for Part-2 (sorted lists). One possible explanation 
+is that the overhead caused by the high contention of a lock would get stable as the number of iterations 
+increases in Part-1. However, as explained in this first part, the threads would stay locked for a longer 
+time in Part-2 (sorted list) and the there is less overhead, so the rate of change is nearly constant,
 meaning the time per operation increases linearly with the number of threads. 
 
 
 QUESTION 2.2.2 - scalability of spin locks
 
-    There is more variation in time per protected operation (vs the number of threads) for list operations protected Spin locks that Mutex lock. 
-In fact, this is more evident in the curve for the addition test. Note that the Spin lock would cost less time than (or nearly the same with) the Mutex lock
-when the number of threads is small, but the Mutex lock would cost less time than Spin lock as the number of threads rises. For the explanation part,
-note the Spin lock would allow one thread to keep spining, i.e. keep waiting for the lock to be released, therefore wasting a lot of CPU time doing nothing but
-wait. However, Mutex lock would not keep a thread spinning but let it yield, which would save the CPU to execute valid operations. Therefore, the Mutex lock would
+    There is more variation in time per protected operation (vs the number of threads) for 
+list operations protected Spin locks that Mutex lock. 
+In fact, this is more evident in the curve for the addition test. Note that 
+the Spin lock would cost less time than (or nearly the same with) the Mutex lock
+when the number of threads is small, but the Mutex lock would cost less time 
+than Spin lock as the number of threads rises. For the explanation part,
+note the Spin lock would allow one thread to keep spining, i.e. keep 
+waiting for the lock to be released, therefore wasting a lot of CPU time doing nothing but
+wait. However, Mutex lock would not keep a thread spinning but let it yield, 
+which would save the CPU to execute valid operations. Therefore, the Mutex lock would
 cost less time as the number of threads increases.
 
 
@@ -114,7 +121,7 @@ Makefile
     dist ... create the deliverable tarball
 
     clean ... delete all programs and output created by the Makefile
-    
+
 Graphs
     Part-1:
 
