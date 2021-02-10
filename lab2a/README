@@ -3,7 +3,132 @@ EMAIL: ericliu2023@g.ucla.edu
 ID: 505375562
 
 QUESTION 2.1.1 - causing conflicts:
-    Why does it take many iterations before errors are seen?
-    Why does a significantly smaller number of iterations so seldom fail?
 
+    When the number of iterations is small enough, it is likely that the
+thread can be executed within one time slice without being interrupted. 
+Therefore, the race condition is less likely to happen, and so the program
+seldom fail. 
+    However, as the number of iterations is large enough, one thread cannot
+be executed entirely without being interrupted within a single time slice. 
+Therefore, the race conditions among different threads may happen, and errors
+would occur. 
+    For the reasons above, it would take many iterations before errors can be seen,
+and a significantly small number of iterations seldom fail.
+
+
+QUESTION 2.1.2 - cost of yielding:
+
+    Note that the if --yield option is specified, the opt_yield flag would be set and 
+sched_yield() function is called in the critical section. Particularly, this would cause
+the thread to relinquish the CPU and OS would do context switch to swap in another thread to
+execute. 
+    Therefore, additional context switches due to the call to sched_yield() would
+actually add overhead to the executation of the whole program and cause it to run much 
+slower. (Note that context switches can be very expensive)
+    The additional time goes towards the additional context switches between threads. 
+    Therefore, it is not possible to get valid per-operation timings if we are using the --yield 
+option, as the wasted additional time is counted in the total time, and as we cannot separate 
+the wasted additional time from the actual operation time, we cannot get the average operation 
+time, or the valid per-operation timings. In other words, we cannot accurately calculate the
+time wasted by the additional context switches and subtract it from the total time.
+
+
+QUESTION 2.1.3 - measurement errors:
+
+    As the number of iterations goes up, the time cost by creating new threads (which is fixed for each thread) 
+spread out over iterations, so the average cost per operations drop with increasing iterations. 
+    From the plot, we see that the rate of change of the cost per operation decreases as
+the iterations increases. That is to say, the cost per operation gets more and more stable
+and does not change much as the number of iterations gets large enough. 
+    The "optimal" number of iterations, would be the threshold above which the cost per operation
+does not change much. (and the "correct" cost is its corresponding cost per operation)
+
+
+QUESTION 2.1.4 - costs of serialization:
+
+    For low numbers of threads, fewer threads would have the potential to run into the race conditions 
+and therefore wait for the lock to be unlocked by other threads, so the contention for a lock among different 
+threads is low. Therefore, the lock can be transfered between different threads (or retrieved by a new thread)
+pretty quickly. The small overhead means all options perform similarly and all perform pretty well.
+    However, as the number of threads increases, the overhead is larger as there is high contention of a
+lock among different threads. Therefore, some thread may need to yield, or keep spinning to wait for the lock
+to be released. This waiting time is a large overhead, which causes the operations to slow down as the number of
+threads rises. 
+
+
+QUESTION 2.2.1 - scalability of Mutex
+
+    The variation in time per mutex-protected operation vs the number of threads in Part-1 (adds) seems to be 
+larger than that in Part-2 (sorted lists). One possible explanation is that the threads in Part-2
+would stay locked for a longer of time (since the operations for the sorted list cost more time than simple addition),
+there would be fewer context switches and thus less overhead for Part-2. Thus, the time per operation would
+not grow so fast as the number of threads grows for Part-2.
+    Note that the shape of the curve for Part-1 (adds) and Part-2 (sorted lists) is both increasing. Since there are more threads,
+the contention of a lock would be higher and the overhead caused by the high contention of a lock would increases the time per operation. 
+    While the rate of increase decreases as the number of iterations increases for the curve in Part-1 (adds),
+the rate of increase does not change much for that for Part-2 (sorted lists). One possible explanation is that the overhead caused by
+the high contention of a lock would get stable as the number of iterations increases in Part-1. However, as explained in this first part,
+the threads would stay locked for a longer time in Part-2 (sorted list) and the there is less overhead, so the rate of change is nearly constant,
+meaning the time per operation increases linearly with the number of threads. 
+
+
+QUESTION 2.2.2 - scalability of spin locks
+
+    There is more variation in time per protected operation (vs the number of threads) for list operations protected Spin locks that Mutex lock. 
+In fact, this is more evident in the curve for the addition test. Note that the Spin lock would cost less time than (or nearly the same with) the Mutex lock
+when the number of threads is small, but the Mutex lock would cost less time than Spin lock as the number of threads rises. For the explanation part,
+note the Spin lock would allow one thread to keep spining, i.e. keep waiting for the lock to be released, therefore wasting a lot of CPU time doing nothing but
+wait. However, Mutex lock would not keep a thread spinning but let it yield, which would save the CPU to execute valid operations. Therefore, the Mutex lock would
+cost less time as the number of threads increases.
+
+
+Files:
+
+lab2_add.c ... a C program that implements and tests a shared variable add function, implements 
+    the specified command line options, and produces the specified output statistics.
         
+        specified command line options: [--threads=th_num --iterations=it_num --yield]
+
+lab2_list.c ... a C program that implements the specified command line options and produces 
+    the specified output statistics.
+
+        specified command line options: [--threads=th_num --iterations=it_num --yield=[idl] --sync=[ms]]
+
+SortedList.h ... a header file (supplied by us) describing the interfaces for linked list operations.
+
+SortedList.c ... a C module that implements insert, delete, lookup, and length methods for a sorted doubly 
+    linked list (described in the provided header file, including correct placement of yield calls).
+
+lab2_add.csv and lab2_list.csv ... containing all the results for Part-1 and Part-2 tests, respectively.
+
+lab2_add.gp and lab2_list.gp ... sample data reduction scripts provided in the spec.
+
+Makefile
+    build ... (default target) compile all programs (with the -Wall and -Wextra options).
+
+    tests ... run all (over 200) specified test cases to generate results in CSV files. Note 
+        that the lab2_list program is expected to fail when running multiple threads without synchronization. 
+
+    graphs ... use gnuplot(1) and the supplied data reduction scripts to generate the required graphs
+
+    dist ... create the deliverable tarball
+
+    clean ... delete all programs and output created by the Makefile
+    
+Graphs
+    Part-1:
+
+    lab2_add-1.png ... threads and iterations required to generate a failure (with and without yields).
+    lab2_add-2.png ... average time per operation with and without yields.
+    lab2_add-3.png ... average time per (single threaded) operation vs. the number of iterations.
+    lab2_add-4.png ... threads and iterations that can run successfully with yields under 
+        each of the synchronization options.
+    lab2_add-5.png ... average time per (protected) operation vs. the number of threads.
+
+    Part-2:
+
+    lab2_list-1.png ... average time per (single threaded) unprotected operation vs. 
+        number of iterations (illustrating the correction of the per-operation cost for the list length).
+    lab2_list-2.png ... threads and iterations required to generate a failure (with and without yields).
+    lab2_list-3.png ... iterations that can run (protected) without failure.
+    lab2_list-4.png ... (length-adjusted) cost per operation vs the number of threads for the various synchronization options.
