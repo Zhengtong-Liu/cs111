@@ -168,6 +168,13 @@ main (int argc, char **argv)
     long operations = thread * iteration * 3;
     long average_time = diff / operations;
 
+    // check the length of the list
+    if (SortedList_length(listhead) != 0)
+    {
+        fprintf(stderr, "error: the length of the list is not zero\n");
+        exit(2);
+    }
+
     // print outputs to csv
     fprintf(stdout, "list-");
     switch (opt_yield)
