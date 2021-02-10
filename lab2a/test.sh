@@ -99,7 +99,7 @@ for th_num in 1, 2, 4, 8, 12
 do
     for it_num in 1, 10, 100, 1000
     do
-        ./lab2_list --threads=$th_num --iterations=$it_num >> lab2_list.csv
+        ./lab2_list --threads=$th_num --iterations=$it_num >> lab2_list.csv 2>/dev/null
     done
 done
 echo ""
@@ -109,7 +109,7 @@ for th_num in 1, 2, 4, 8, 12
 do
     for it_num in 1, 2, 4, 8, 16, 32
     do
-        ./lab2_list --threads=$th_num --iterations=$it_num --yield=i >> lab2_list.csv
+        ./lab2_list --threads=$th_num --iterations=$it_num --yield=i >> lab2_list.csv 2>/dev/null
     done
 done
 echo ""
@@ -119,7 +119,7 @@ for th_num in 1, 2, 4, 8, 12
 do
     for it_num in 1, 2, 4, 8, 16, 32
     do
-        ./lab2_list --threads=$th_num --iterations=$it_num --yield=d >> lab2_list.csv
+        ./lab2_list --threads=$th_num --iterations=$it_num --yield=d >> lab2_list.csv 2>/dev/null
     done
 done
 echo ""
@@ -129,7 +129,7 @@ for th_num in 1, 2, 4, 8, 12
 do
     for it_num in 1, 2, 4, 8, 16, 32
     do
-        ./lab2_list --threads=$th_num --iterations=$it_num --yield=il >> lab2_list.csv
+        ./lab2_list --threads=$th_num --iterations=$it_num --yield=il >> lab2_list.csv 2>/dev/null
     done
 done
 echo ""
@@ -139,7 +139,7 @@ for th_num in 1, 2, 4, 8, 12
 do
     for it_num in 1, 2, 4, 8, 16, 32
     do
-        ./lab2_list --threads=$th_num --iterations=$it_num --yield=dl >> lab2_list.csv
+        ./lab2_list --threads=$th_num --iterations=$it_num --yield=dl >> lab2_list.csv 2>/dev/null
     done
 done
 echo ""
@@ -228,7 +228,7 @@ echo "... list-none-none overcome start-up costs"
 for th_num in 1, 2, 4, 8, 12, 16, 24
 do
     
-    ./lab2_list --threads=$th_num --iterations=1000 >> lab2_list.csv    
+    ./lab2_list --threads=$th_num --iterations=1000 >> lab2_list.csv  2>/dev/null
 done
 echo ""
 
