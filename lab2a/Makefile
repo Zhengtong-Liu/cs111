@@ -15,7 +15,7 @@ clean:
 
 tests: build
 	chmod +x test.sh
-	./test.sh  2 > /dev/null
+	-./test.sh
 
 graphs: tests
 	gnuplot ./lab2_add.gp
