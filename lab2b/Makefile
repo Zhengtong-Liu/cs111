@@ -15,8 +15,8 @@ tests: build
 	-./test.sh
 
 profile: lab2_list
-	LD_PRELOAD = /lib64/libprofiler.so
-	CPUPROFILE = ./raw.gperf ./lab2_list --thread=12 --iterations=1000 --sync=s
+	LD_PRELOAD=/lib64/libprofiler.so
+	CPUPROFILE=./raw.gperf ./lab2_list --thread=12 --iterations=1000 --sync=s
 	/bin/pprof --text ./lab2_list ./raw.gperf
 	/bin/pprof --list=thread_worker ./lab2_list ./raw.gperf
 
