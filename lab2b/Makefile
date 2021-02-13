@@ -2,23 +2,22 @@
 # EMAIL: ericliu2023@g.ucla.edu
 # ID: 505375562
 
-build: lab2_list
-
-lab2_list: lab2_list.c SortedList.h SortedList.c
+default:
 	gcc -g -Wall -Wextra -lpthread -lprofiler lab2_list.c SortedList.c -o $@
 
 clean:
 	rm -rf *.o *.tar.gz lab2_list *.dSYM
 
-tests: build
+tests: default
 	chmod +x test.sh
 	-./test.sh
 
-profile: lab2_list
+profile: default
+	rm -f ./raw.gperf profile.out
 	LD_PRELOAD=~/lib/libprofiler.so
 	CPUPROFILE=./raw.gperf ./lab2_list --thread=12 --iterations=1000 --sync=s
-	pprof --text ./lab2_list ./raw.gperf
-	pprof --list=thread_worker ./lab2_list ./raw.gperf
+	pprof --text ./lab2_list ./raw.gperf > profile.out
+	pprof --list=thread_worker ./lab2_list ./raw.gperf >> profile.out
 
 graphs: tests
 	gnuplot ./lab2_list.gp
