@@ -5,7 +5,7 @@
 build: lab2_list
 
 lab2_list: lab2_list.c SortedList.h SortedList.c
-	gcc -Og -g3 -Wall -Wextra -lpthread lab2_list.c SortedList.c -o $@
+	gcc -g -Wall -Wextra -lpthread -lprofiler lab2_list.c SortedList.c -o $@
 
 clean:
 	rm -rf *.o *.tar.gz lab2_list *.dSYM
