@@ -3,7 +3,7 @@
 # ID: 505375562
 
 default:
-	gcc -g -Wall -Wextra -lpthread -lprofiler lab2_list.c SortedList.c -o $@
+	gcc -g -Wall -Wextra -lpthread -lprofiler lab2_list.c SortedList.c -o lab2_list
 
 clean:
 	rm -rf *.o *.tar.gz lab2_list *.dSYM
