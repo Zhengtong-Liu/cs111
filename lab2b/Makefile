@@ -23,7 +23,7 @@ profile: default
 graphs: tests
 	gnuplot ./lab2_list.gp
 
-submission-files = *.c *.h README Makefile *.csv *.png test.sh *.gp
+submission-files = *.c *.h README Makefile *.csv *.png test.sh *.gp profile.out
 
 dist: graphs profile
 	tar -czvf lab2b-505375562.tar.gz $(submission-files)
