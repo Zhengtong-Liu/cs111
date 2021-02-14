@@ -34,8 +34,6 @@ long iteration;
 pthread_mutex_t *mutex_locks;
 // for spin lock
 int *spin_locks;
-// for mutex wait time
-long wait_time = 0;
 // list number
 int list_number = 1;
 
@@ -196,12 +194,16 @@ main (int argc, char **argv)
         }
     }
     // join threads
+    long wait_time = 0;
+    void ** wait_ret = (void *) malloc(sizeof(void **));
     for (i = 0; i < thread; i++) {
-        if (pthread_join(pthreads[i], NULL) < 0)
+        if (pthread_join(pthreads[i], wait_ret) < 0)
         {
             fprintf(stderr, "error when trying to join a terminated thread\n");
             exit(1);
         }
+        printf("thread[%ld] wait time is %ld\n", i, (long) *wait_ret);
+        wait_time += (long) *wait_ret;
     }
 
     if (clock_gettime(CLOCK_MONOTONIC, &end) < 0)
@@ -279,7 +281,7 @@ main (int argc, char **argv)
     // free memory, finish mutex lock if needed and exit without error
     free(pool);
     free(listheads);
-
+    free(wait_ret);
     if (sync_type == 'm')
     {
         for (int k = 0; k < list_number; k++)
@@ -379,6 +381,7 @@ bool read_options (int argc, char* argv[], struct opts* opts)
 
 void *thread_worker(void *arg)
 {
+    long wait_time = 0;
     struct timespec start_time, end_time;
 
     long thread_num = *((long*)arg);
@@ -392,9 +395,9 @@ void *thread_worker(void *arg)
             clock_gettime(CLOCK_MONOTONIC, &start_time);
             pthread_mutex_lock(mutex_locks + list_num);
             clock_gettime(CLOCK_MONOTONIC, &end_time);
-
-            SortedList_insert(listheads + list_num, pool + i);
             wait_time += get_nanosec_from_timespec(&end_time) - get_nanosec_from_timespec(&start_time);
+            printf("wait_time now is %ld\n", wait_time);
+            SortedList_insert(listheads + list_num, pool + i);
 
             pthread_mutex_unlock(mutex_locks + list_num);
         }
@@ -403,10 +406,9 @@ void *thread_worker(void *arg)
             clock_gettime(CLOCK_MONOTONIC, &start_time);
             while (__sync_lock_test_and_set(spin_locks + list_num, 1));
             clock_gettime(CLOCK_MONOTONIC, &end_time);
-
-            SortedList_insert(listheads + list_num, pool + i);
             wait_time += get_nanosec_from_timespec(&end_time) - get_nanosec_from_timespec(&start_time);
 
+            SortedList_insert(listheads + list_num, pool + i);
             __sync_lock_release(spin_locks + list_num);
 
         }
@@ -422,7 +424,8 @@ void *thread_worker(void *arg)
             clock_gettime(CLOCK_MONOTONIC, &start_time);
             pthread_mutex_lock(mutex_locks + k);
             clock_gettime(CLOCK_MONOTONIC, &end_time);
-
+            wait_time += get_nanosec_from_timespec(&end_time) - get_nanosec_from_timespec(&start_time);
+            printf("wait_time now is %ld\n", wait_time);
             long sub_len = SortedList_length(listheads + k);
             if (sub_len < 0)
             {
@@ -431,7 +434,7 @@ void *thread_worker(void *arg)
             }
             len += sub_len;
 
-            wait_time += get_nanosec_from_timespec(&end_time) - get_nanosec_from_timespec(&start_time);
+            
             pthread_mutex_unlock(mutex_locks + k);
         }
    
@@ -443,6 +446,8 @@ void *thread_worker(void *arg)
             clock_gettime(CLOCK_MONOTONIC, &start_time);
             while (__sync_lock_test_and_set(spin_locks + k, 1));
             clock_gettime(CLOCK_MONOTONIC, &end_time);
+            wait_time += get_nanosec_from_timespec(&end_time) - get_nanosec_from_timespec(&start_time);
+
             long sub_len = SortedList_length(listheads + k);
             if (sub_len < 0)
             {
@@ -451,7 +456,7 @@ void *thread_worker(void *arg)
             }
             len += sub_len;
 
-            wait_time += get_nanosec_from_timespec(&end_time) - get_nanosec_from_timespec(&start_time);
+            
             __sync_lock_release(spin_locks + k);
         }
     }
@@ -479,7 +484,9 @@ void *thread_worker(void *arg)
             clock_gettime(CLOCK_MONOTONIC, &start_time);
             pthread_mutex_lock(mutex_locks + list_num);
             clock_gettime(CLOCK_MONOTONIC, &end_time);
-
+            wait_time += get_nanosec_from_timespec(&end_time) - get_nanosec_from_timespec(&start_time);
+            printf("wait_time now is %ld\n", wait_time);
+            
             element = SortedList_lookup(listheads + list_num, pool[i].key);
             if (element == NULL)
             {
@@ -491,7 +498,7 @@ void *thread_worker(void *arg)
                 fprintf(stderr, "prev/next of this element is corrupted\n");
                 exit(2);
             }
-            wait_time += get_nanosec_from_timespec(&end_time) - get_nanosec_from_timespec(&start_time);
+            
 
             pthread_mutex_unlock(mutex_locks + list_num);
 
@@ -501,7 +508,8 @@ void *thread_worker(void *arg)
             clock_gettime(CLOCK_MONOTONIC, &start_time);
             while (__sync_lock_test_and_set(spin_locks + list_num, 1));
             clock_gettime(CLOCK_MONOTONIC, &end_time);
-
+            wait_time += get_nanosec_from_timespec(&end_time) - get_nanosec_from_timespec(&start_time);
+            
             element = SortedList_lookup(listheads + list_num, pool[i].key);
             if (element == NULL)
             {
@@ -513,7 +521,6 @@ void *thread_worker(void *arg)
                 fprintf(stderr, "prev/next of this element is corrupted\n");
                 exit(2);
             }
-            wait_time += get_nanosec_from_timespec(&end_time) - get_nanosec_from_timespec(&start_time);
 
             __sync_lock_release(spin_locks + list_num);
 
@@ -534,7 +541,7 @@ void *thread_worker(void *arg)
         }
     }
     
-    return arg;
+    return (void *) wait_time;
 }
 
 void segfault_handler (int sig)
