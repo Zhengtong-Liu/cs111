@@ -20,7 +20,7 @@ plot \
 
 
 # mean time per mutex wait and mean time per operation for mutex-synchronized list operations
-set title "List-2: Average wait-for-mutex time and average time per operation vs Number of threads"
+set title "List-2: Average wait/operation time vs Number of threads"
 set xlabel "Threads"
 set logscale x 2
 set ylabel "Average time (ns)"
@@ -35,7 +35,7 @@ plot \
 
 
 
-set title "List-3: Sucessful Iterations vs. threads for each synchronization method"
+set title "List-3: Sucessful Iterations vs. threads"
 set xlabel "Threads"
 set logscale x 2
 set xrange [0.75:]
@@ -46,13 +46,13 @@ set output 'lab2b_3.png'
 plot \
      "< grep -e 'list-id-none,[0-9]*,[0-9]*,4' lab2_list.csv" using ($2):($3) \
 	title 'yield=id sync=none' with points lc rgb 'red', \
-     "< grep -e 'list-id-m [0-9]*,[0-9]*,4' lab2_list.csv" using ($2):($3) \
+     "< grep -e 'list-id-m,[0-9]*,[0-9]*,4' lab2_list.csv" using ($2):($3) \
 	title 'yield=id sync=m' with points lc rgb 'green', \
-     "< grep -e 'list-id-s [0-9]*,[0-9]*,4' lab2_list.csv" using ($2):($3) \
+     "< grep -e 'list-id-s,[0-9]*,[0-9]*,4' lab2_list.csv" using ($2):($3) \
 	title 'yield=d sync=s' with points lc rgb 'blue'
 
 
-set title "List-4: throughput vs. number of threads for mutex synchronized partitioned lists"
+set title "List-4: Throughput vs. number of threads (mutex lock)"
 set xlabel "Threads"
 set logscale x 2
 set ylabel "Number of operation per second"
@@ -69,7 +69,7 @@ plot \
 	title 'lists=16' with linespoints lc rgb 'blue'
 
 
-set title "List-5: throughput vs. number of threads for spin-lock-synchronized partitioned lists"
+set title "List-5: throughput vs. number of threads (spin lock)"
 set xlabel "Threads"
 set logscale x 2
 set ylabel "Number of operation per second"

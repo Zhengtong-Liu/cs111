@@ -22,14 +22,6 @@ do
 done
 echo ""
 
-echo "... list-none-m 1000 iterations with various # of threads"
-for th_num in 1, 2, 4, 8, 12, 16, 24
-do
-    
-    ./lab2_list --threads=$th_num --iterations=1000 --sync=m >> lab2_list.csv    
-done
-echo ""
-
 echo "... list-id-none 4 lists"
 for th_num in 1, 2, 4, 8, 12, 16
 do
@@ -63,7 +55,7 @@ echo ""
 echo "... list-none-m 1000 iterations"
 for th_num in 1, 2, 4, 8, 12
 do
-    for list_num in 1, 4, 8, 16
+    for list_num in 4, 8, 16
     do
         ./lab2_list --threads=$th_num --iterations=1000 --lists=$list_num --sync=m >> lab2_list.csv  
     done
@@ -73,7 +65,7 @@ echo ""
 echo "... list-none-s 1000 iterations"
 for th_num in 1, 2, 4, 8, 12
 do
-    for list_num in 1, 4, 8, 16
+    for list_num in 4, 8, 16
     do
         ./lab2_list --threads=$th_num --iterations=1000 --lists=$list_num --sync=s >> lab2_list.csv  
     done
