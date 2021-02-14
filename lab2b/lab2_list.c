@@ -202,7 +202,6 @@ main (int argc, char **argv)
             fprintf(stderr, "error when trying to join a terminated thread\n");
             exit(1);
         }
-        printf("thread[%ld] wait time is %ld\n", i, (long) *wait_ret);
         wait_time += (long) *wait_ret;
     }
 
@@ -218,7 +217,7 @@ main (int argc, char **argv)
     long average_time = diff / operations;
 
     // calculate average mutex lock wait time
-    long average_wait_mutex = wait_time / thread;
+    long average_wait_mutex = wait_time / operations;
 
 
     // check the length of the list
@@ -396,7 +395,6 @@ void *thread_worker(void *arg)
             pthread_mutex_lock(mutex_locks + list_num);
             clock_gettime(CLOCK_MONOTONIC, &end_time);
             wait_time += get_nanosec_from_timespec(&end_time) - get_nanosec_from_timespec(&start_time);
-            printf("wait_time now is %ld\n", wait_time);
             SortedList_insert(listheads + list_num, pool + i);
 
             pthread_mutex_unlock(mutex_locks + list_num);
@@ -425,7 +423,6 @@ void *thread_worker(void *arg)
             pthread_mutex_lock(mutex_locks + k);
             clock_gettime(CLOCK_MONOTONIC, &end_time);
             wait_time += get_nanosec_from_timespec(&end_time) - get_nanosec_from_timespec(&start_time);
-            printf("wait_time now is %ld\n", wait_time);
             long sub_len = SortedList_length(listheads + k);
             if (sub_len < 0)
             {
@@ -485,8 +482,7 @@ void *thread_worker(void *arg)
             pthread_mutex_lock(mutex_locks + list_num);
             clock_gettime(CLOCK_MONOTONIC, &end_time);
             wait_time += get_nanosec_from_timespec(&end_time) - get_nanosec_from_timespec(&start_time);
-            printf("wait_time now is %ld\n", wait_time);
-            
+
             element = SortedList_lookup(listheads + list_num, pool[i].key);
             if (element == NULL)
             {
