@@ -60,13 +60,13 @@ set logscale y 10
 set output 'lab2b_4.png'
 plot \
      "< grep -e 'list-none-m,[0-9]*,1000,1' lab2_list.csv" using ($2):(1000000000/($7)) \
-	title 'lists=1' with points lc rgb 'green', \
+	title 'lists=1' with linespoints lc rgb 'green', \
      "< grep -e 'list-none-m,[0-9]*,1000,4' lab2_list.csv" using ($2):(1000000000/($7)) \
-	title 'lists=4' with points lc rgb 'red', \
+	title 'lists=4' with linespoints lc rgb 'red', \
      "< grep -e 'list-none-m,[0-9]*,1000,8' lab2_list.csv" using ($2):(1000000000/($7)) \
-	title 'lists=8' with points lc rgb 'orange', \
-     "< grep l-e 'list-none-m,[0-9]*,1000,16' lab2_list.csv" using ($2):(1000000000/($7)) \
-	title 'lists=16' with points lc rgb 'blue'
+	title 'lists=8' with linespoints lc rgb 'orange', \
+     "< grep -e 'list-none-m,[0-9]*,1000,16' lab2_list.csv" using ($2):(1000000000/($7)) \
+	title 'lists=16' with linespoints lc rgb 'blue'
 
 
 set title "List-5: throughput vs. number of threads for spin-lock-synchronized partitioned lists"
@@ -77,10 +77,10 @@ set logscale y 10
 set output 'lab2b_5.png'
 plot \
      "< grep -e 'list-none-s,[0-9]*,1000,1' lab2_list.csv" using ($2):(1000000000/($7)) \
-	title 'lists=1' with points lc rgb 'green', \
+	title 'lists=1' with linespoints lc rgb 'green', \
      "< grep -e 'list-none-s,[0-9]*,1000,4' lab2_list.csv" using ($2):(1000000000/($7)) \
-	title 'lists=4' with points lc rgb 'red', \
+	title 'lists=4' with linespoints lc rgb 'red', \
      "< grep -e 'list-none-s,[0-9]*,1000,8' lab2_list.csv" using ($2):(1000000000/($7)) \
-	title 'lists=8' with points lc rgb 'orange', \
-     "< grep l-e 'list-none-s,[0-9]*,1000,16' lab2_list.csv" using ($2):(1000000000/($7)) \
-	title 'lists=16' with points lc rgb 'blue'
+	title 'lists=8' with linespoints lc rgb 'orange', \
+     "< grep -e 'list-none-s,[0-9]*,1000,16' lab2_list.csv" using ($2):(1000000000/($7)) \
+	title 'lists=16' with linespoints lc rgb 'blue'
