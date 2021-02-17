@@ -1,0 +1,367 @@
+Total: 1240 samples
+    1092  88.1%  88.1%     1240 100.0% thread_worker
+      50   4.0%  92.1%       50   4.0% ?? /usr/src/debug////////glibc-2.17-c758a686/string/../sysdeps/x86_64/multiarch/strcmp-sse42.S:204
+      18   1.5%  93.5%       88   7.1% SortedList_insert
+      17   1.4%  94.9%       17   1.4% ?? /usr/src/debug////////glibc-2.17-c758a686/string/../sysdeps/x86_64/multiarch/strcmp-sse42.S:1734
+      13   1.0%  96.0%       59   4.8% SortedList_lookup
+       8   0.6%  96.6%        8   0.6% ?? /usr/src/debug////////glibc-2.17-c758a686/string/../sysdeps/x86_64/multiarch/strcmp-sse42.S:1734
+       7   0.6%  97.2%        7   0.6% ?? /usr/src/debug////////glibc-2.17-c758a686/string/../sysdeps/x86_64/multiarch/strcmp-sse42.S:161
+       7   0.6%  97.7%        7   0.6% ?? /usr/src/debug////////glibc-2.17-c758a686/string/../sysdeps/x86_64/multiarch/strcmp-sse42.S:1734
+       6   0.5%  98.2%        6   0.5% ?? /usr/src/debug////////glibc-2.17-c758a686/string/../sysdeps/x86_64/multiarch/strcmp-sse42.S:211
+       6   0.5%  98.7%        6   0.5% ?? /usr/src/debug////////glibc-2.17-c758a686/string/../sysdeps/x86_64/multiarch/strcmp-sse42.S:1734
+       4   0.3%  99.0%        4   0.3% ?? /usr/src/debug////////glibc-2.17-c758a686/string/../sysdeps/x86_64/multiarch/strcmp-sse42.S:165
+       4   0.3%  99.4%        4   0.3% ?? /usr/src/debug////////glibc-2.17-c758a686/string/../sysdeps/x86_64/multiarch/strcmp-sse42.S:206
+       4   0.3%  99.7%        4   0.3% ?? /usr/src/debug////////glibc-2.17-c758a686/string/../sysdeps/x86_64/multiarch/strcmp-sse42.S:1733
+       2   0.2%  99.8%        2   0.2% _init
+       1   0.1%  99.9%        1   0.1% ?? /usr/src/debug////////glibc-2.17-c758a686/string/../sysdeps/x86_64/multiarch/strcmp-sse42.S:212
+       1   0.1% 100.0%        1   0.1% get_nanosec_from_timespec
+       0   0.0% 100.0%     1240 100.0% ?? /usr/src/debug////////glibc-2.17-c758a686/misc/../sysdeps/unix/sysv/linux/x86_64/clone.S:118
+       0   0.0% 100.0%     1240 100.0% start_thread
+ROUTINE ====================== thread_worker in /u/cs/ugrad/zhengton/cs111/lab2b/lab2_list.c
+  1092   1240 Total samples (flat / cumulative)
+     .      .  377:     
+     .      .  378:     return true;
+     .      .  379: }
+     .      .  380: 
+     .      .  381: void *thread_worker(void *arg)
+---
+     .      .  382: {
+     .      .  383:     long wait_time = 0;
+     .      .  384:     struct timespec start_time, end_time;
+     .      .  385: 
+     .      .  386:     long thread_num = *((long*)arg);
+     .      .  387:     long start_index = thread_num * iteration;
+     .      .  388:     // insert elements with or without lock
+     .      .  389:     for (long i = start_index; i < start_index + iteration; i++)
+     .      .  390:     {
+     .      .  391:         int list_num = hash_key(pool[i].key);
+     .      .  392:         if (sync_type == 'm')
+     .      .  393:         {
+     .      .  394:             clock_gettime(CLOCK_MONOTONIC, &start_time);
+     .      .  395:             pthread_mutex_lock(mutex_locks + list_num);
+     .      .  396:             clock_gettime(CLOCK_MONOTONIC, &end_time);
+     .      .  397:             wait_time += get_nanosec_from_timespec(&end_time) - get_nanosec_from_timespec(&start_time);
+     .      .  398:             SortedList_insert(listheads + list_num, pool + i);
+     .      .  399: 
+     .      .  400:             pthread_mutex_unlock(mutex_locks + list_num);
+     .      .  401:         }
+     .      .  402:         else if (sync_type == 's')
+     .      .  403:         {
+     .      .  404:             clock_gettime(CLOCK_MONOTONIC, &start_time);
+   559    559  405:             while (__sync_lock_test_and_set(spin_locks + list_num, 1));
+     .      .  406:             clock_gettime(CLOCK_MONOTONIC, &end_time);
+     .      .  407:             wait_time += get_nanosec_from_timespec(&end_time) - get_nanosec_from_timespec(&start_time);
+     .      .  408: 
+     .     88  409:             SortedList_insert(listheads + list_num, pool + i);
+     .      .  410:             __sync_lock_release(spin_locks + list_num);
+     .      .  411: 
+     .      .  412:         }
+     .      .  413:         else if (sync_type != 'm' && sync_type != 's')
+     .      .  414:             SortedList_insert(listheads + list_num, pool + i);
+     .      .  415:     }
+     .      .  416:     // get sorted list length with and without lock
+     .      .  417:     long len = 0;
+     .      .  418:     if (sync_type == 'm')
+     .      .  419:     {
+     .      .  420:         for (int k = 0; k < list_number; k++)
+     .      .  421:         {
+     .      .  422:             clock_gettime(CLOCK_MONOTONIC, &start_time);
+     .      .  423:             pthread_mutex_lock(mutex_locks + k);
+     .      .  424:             clock_gettime(CLOCK_MONOTONIC, &end_time);
+     .      .  425:             wait_time += get_nanosec_from_timespec(&end_time) - get_nanosec_from_timespec(&start_time);
+     .      .  426:             long sub_len = SortedList_length(listheads + k);
+     .      .  427:             if (sub_len < 0)
+     .      .  428:             {
+     .      .  429:                 fprintf(stderr, "sub-list %d is corrupted\n", k);
+     .      .  430:                 exit(2);
+     .      .  431:             }
+     .      .  432:             len += sub_len;
+     .      .  433: 
+     .      .  434:             
+     .      .  435:             pthread_mutex_unlock(mutex_locks + k);
+     .      .  436:         }
+     .      .  437:    
+     .      .  438:     }
+     .      .  439:     else if (sync_type == 's')
+     .      .  440:     {
+     .      .  441:         for (int k = 0; k < list_number; k++)
+     .      .  442:         {
+     .      .  443:             clock_gettime(CLOCK_MONOTONIC, &start_time);
+     1      1  444:             while (__sync_lock_test_and_set(spin_locks + k, 1));
+     .      .  445:             clock_gettime(CLOCK_MONOTONIC, &end_time);
+     .      .  446:             wait_time += get_nanosec_from_timespec(&end_time) - get_nanosec_from_timespec(&start_time);
+     .      .  447: 
+     .      .  448:             long sub_len = SortedList_length(listheads + k);
+     .      .  449:             if (sub_len < 0)
+     .      .  450:             {
+     .      .  451:                 fprintf(stderr, "sub-list %d is corrupted\n", k);
+     .      .  452:                 exit(2);
+     .      .  453:             }
+     .      .  454:             len += sub_len;
+     .      .  455: 
+     .      .  456:             
+     .      .  457:             __sync_lock_release(spin_locks + k);
+     .      .  458:         }
+     .      .  459:     }
+     .      .  460:     else if (sync_type != 'm' && sync_type != 's')
+     .      .  461:     {
+     .      .  462:         for (int k = 0; k < list_number; k++)
+     .      .  463:         {
+     .      .  464:             long sub_len = SortedList_length(listheads + k);
+     .      .  465:             if (sub_len < 0)
+     .      .  466:             {
+     .      .  467:                 fprintf(stderr, "sub-list %d is corrupted\n", k);
+     .      .  468:                 exit(2);
+     .      .  469:             }
+     .      .  470:             len += sub_len;
+     .      .  471:         }
+     .      .  472:     }
+     .      .  473: 
+     .      .  474:     // look up and delete sorted list elements with and without lock
+     .      .  475:     SortedListElement_t *element;
+     .      .  476:     for (long i = start_index; i < start_index + iteration; i++) {
+     .      .  477: 
+     .      .  478:         int list_num = hash_key(pool[i].key);
+     .      .  479:         if (sync_type == 'm')
+     .      .  480:         {
+     .      .  481:             clock_gettime(CLOCK_MONOTONIC, &start_time);
+     .      .  482:             pthread_mutex_lock(mutex_locks + list_num);
+     .      .  483:             clock_gettime(CLOCK_MONOTONIC, &end_time);
+     .      .  484:             wait_time += get_nanosec_from_timespec(&end_time) - get_nanosec_from_timespec(&start_time);
+     .      .  485: 
+     .      .  486:             element = SortedList_lookup(listheads + list_num, pool[i].key);
+     .      .  487:             if (element == NULL)
+     .      .  488:             {
+     .      .  489:                 fprintf(stderr, "element not found in this sorted list\n");
+     .      .  490:                 exit(2);
+     .      .  491:             }
+     .      .  492:             if (SortedList_delete(element) == 1)
+     .      .  493:             {
+     .      .  494:                 fprintf(stderr, "prev/next of this element is corrupted\n");
+     .      .  495:                 exit(2);
+     .      .  496:             }
+     .      .  497:             
+     .      .  498: 
+     .      .  499:             pthread_mutex_unlock(mutex_locks + list_num);
+     .      .  500: 
+     .      .  501:         }
+     .      .  502:         else if (sync_type == 's')
+     .      .  503:         {
+     .      .  504:             clock_gettime(CLOCK_MONOTONIC, &start_time);
+   532    532  505:             while (__sync_lock_test_and_set(spin_locks + list_num, 1));
+     .      .  506:             clock_gettime(CLOCK_MONOTONIC, &end_time);
+     .      1  507:             wait_time += get_nanosec_from_timespec(&end_time) - get_nanosec_from_timespec(&start_time);
+     .      .  508:             
+     .     59  509:             element = SortedList_lookup(listheads + list_num, pool[i].key);
+     .      .  510:             if (element == NULL)
+     .      .  511:             {
+     .      .  512:                 fprintf(stderr, "element not found in this sorted list\n");
+     .      .  513:                 exit(2);
+     .      .  514:             }
+     .      .  515:             if (SortedList_delete(element) == 1)
+     .      .  516:             {
+     .      .  517:                 fprintf(stderr, "prev/next of this element is corrupted\n");
+     .      .  518:                 exit(2);
+     .      .  519:             }
+     .      .  520: 
+     .      .  521:             __sync_lock_release(spin_locks + list_num);
+     .      .  522: 
+     .      .  523:         }
+     .      .  524:         else if (sync_type != 'm' && sync_type != 's')
+     .      .  525:         {
+     .      .  526:             element = SortedList_lookup(listheads + list_num, pool[i].key);
+     .      .  527:             if (element == NULL)
+     .      .  528:             {
+     .      .  529:                 fprintf(stderr, "element not found in this sorted list\n");
+     .      .  530:                 exit(2);
+     .      .  531:             }
+     .      .  532:             if (SortedList_delete(element) == 1)
+     .      .  533:             {
+     .      .  534:                 fprintf(stderr, "prev/next of this element is corrupted\n");
+     .      .  535:                 exit(2);
+     .      .  536:             }
+     .      .  537:         }
+     .      .  538:     }
+     .      .  539:     
+     .      .  540:     return (void *) wait_time;
+     .      .  541: }
+---
+     .      .  542: 
+     .      .  543: void segfault_handler (int sig)
+     .      .  544: {
+     .      .  545:     if (sig == SIGSEGV)
+     .      .  546:     {
+ROUTINE ====================== thread_worker in /u/cs/ugrad/zhengton/cs111/lab2b/lab2_list.c
+  1092   1240 Total samples (flat / cumulative)
+     .      .  377:     
+     .      .  378:     return true;
+     .      .  379: }
+     .      .  380: 
+     .      .  381: void *thread_worker(void *arg)
+---
+     .      .  382: {
+     .      .  383:     long wait_time = 0;
+     .      .  384:     struct timespec start_time, end_time;
+     .      .  385: 
+     .      .  386:     long thread_num = *((long*)arg);
+     .      .  387:     long start_index = thread_num * iteration;
+     .      .  388:     // insert elements with or without lock
+     .      .  389:     for (long i = start_index; i < start_index + iteration; i++)
+     .      .  390:     {
+     .      .  391:         int list_num = hash_key(pool[i].key);
+     .      .  392:         if (sync_type == 'm')
+     .      .  393:         {
+     .      .  394:             clock_gettime(CLOCK_MONOTONIC, &start_time);
+     .      .  395:             pthread_mutex_lock(mutex_locks + list_num);
+     .      .  396:             clock_gettime(CLOCK_MONOTONIC, &end_time);
+     .      .  397:             wait_time += get_nanosec_from_timespec(&end_time) - get_nanosec_from_timespec(&start_time);
+     .      .  398:             SortedList_insert(listheads + list_num, pool + i);
+     .      .  399: 
+     .      .  400:             pthread_mutex_unlock(mutex_locks + list_num);
+     .      .  401:         }
+     .      .  402:         else if (sync_type == 's')
+     .      .  403:         {
+     .      .  404:             clock_gettime(CLOCK_MONOTONIC, &start_time);
+   559    559  405:             while (__sync_lock_test_and_set(spin_locks + list_num, 1));
+     .      .  406:             clock_gettime(CLOCK_MONOTONIC, &end_time);
+     .      .  407:             wait_time += get_nanosec_from_timespec(&end_time) - get_nanosec_from_timespec(&start_time);
+     .      .  408: 
+     .     88  409:             SortedList_insert(listheads + list_num, pool + i);
+     .      .  410:             __sync_lock_release(spin_locks + list_num);
+     .      .  411: 
+     .      .  412:         }
+     .      .  413:         else if (sync_type != 'm' && sync_type != 's')
+     .      .  414:             SortedList_insert(listheads + list_num, pool + i);
+     .      .  415:     }
+     .      .  416:     // get sorted list length with and without lock
+     .      .  417:     long len = 0;
+     .      .  418:     if (sync_type == 'm')
+     .      .  419:     {
+     .      .  420:         for (int k = 0; k < list_number; k++)
+     .      .  421:         {
+     .      .  422:             clock_gettime(CLOCK_MONOTONIC, &start_time);
+     .      .  423:             pthread_mutex_lock(mutex_locks + k);
+     .      .  424:             clock_gettime(CLOCK_MONOTONIC, &end_time);
+     .      .  425:             wait_time += get_nanosec_from_timespec(&end_time) - get_nanosec_from_timespec(&start_time);
+     .      .  426:             long sub_len = SortedList_length(listheads + k);
+     .      .  427:             if (sub_len < 0)
+     .      .  428:             {
+     .      .  429:                 fprintf(stderr, "sub-list %d is corrupted\n", k);
+     .      .  430:                 exit(2);
+     .      .  431:             }
+     .      .  432:             len += sub_len;
+     .      .  433: 
+     .      .  434:             
+     .      .  435:             pthread_mutex_unlock(mutex_locks + k);
+     .      .  436:         }
+     .      .  437:    
+     .      .  438:     }
+     .      .  439:     else if (sync_type == 's')
+     .      .  440:     {
+     .      .  441:         for (int k = 0; k < list_number; k++)
+     .      .  442:         {
+     .      .  443:             clock_gettime(CLOCK_MONOTONIC, &start_time);
+     1      1  444:             while (__sync_lock_test_and_set(spin_locks + k, 1));
+     .      .  445:             clock_gettime(CLOCK_MONOTONIC, &end_time);
+     .      .  446:             wait_time += get_nanosec_from_timespec(&end_time) - get_nanosec_from_timespec(&start_time);
+     .      .  447: 
+     .      .  448:             long sub_len = SortedList_length(listheads + k);
+     .      .  449:             if (sub_len < 0)
+     .      .  450:             {
+     .      .  451:                 fprintf(stderr, "sub-list %d is corrupted\n", k);
+     .      .  452:                 exit(2);
+     .      .  453:             }
+     .      .  454:             len += sub_len;
+     .      .  455: 
+     .      .  456:             
+     .      .  457:             __sync_lock_release(spin_locks + k);
+     .      .  458:         }
+     .      .  459:     }
+     .      .  460:     else if (sync_type != 'm' && sync_type != 's')
+     .      .  461:     {
+     .      .  462:         for (int k = 0; k < list_number; k++)
+     .      .  463:         {
+     .      .  464:             long sub_len = SortedList_length(listheads + k);
+     .      .  465:             if (sub_len < 0)
+     .      .  466:             {
+     .      .  467:                 fprintf(stderr, "sub-list %d is corrupted\n", k);
+     .      .  468:                 exit(2);
+     .      .  469:             }
+     .      .  470:             len += sub_len;
+     .      .  471:         }
+     .      .  472:     }
+     .      .  473: 
+     .      .  474:     // look up and delete sorted list elements with and without lock
+     .      .  475:     SortedListElement_t *element;
+     .      .  476:     for (long i = start_index; i < start_index + iteration; i++) {
+     .      .  477: 
+     .      .  478:         int list_num = hash_key(pool[i].key);
+     .      .  479:         if (sync_type == 'm')
+     .      .  480:         {
+     .      .  481:             clock_gettime(CLOCK_MONOTONIC, &start_time);
+     .      .  482:             pthread_mutex_lock(mutex_locks + list_num);
+     .      .  483:             clock_gettime(CLOCK_MONOTONIC, &end_time);
+     .      .  484:             wait_time += get_nanosec_from_timespec(&end_time) - get_nanosec_from_timespec(&start_time);
+     .      .  485: 
+     .      .  486:             element = SortedList_lookup(listheads + list_num, pool[i].key);
+     .      .  487:             if (element == NULL)
+     .      .  488:             {
+     .      .  489:                 fprintf(stderr, "element not found in this sorted list\n");
+     .      .  490:                 exit(2);
+     .      .  491:             }
+     .      .  492:             if (SortedList_delete(element) == 1)
+     .      .  493:             {
+     .      .  494:                 fprintf(stderr, "prev/next of this element is corrupted\n");
+     .      .  495:                 exit(2);
+     .      .  496:             }
+     .      .  497:             
+     .      .  498: 
+     .      .  499:             pthread_mutex_unlock(mutex_locks + list_num);
+     .      .  500: 
+     .      .  501:         }
+     .      .  502:         else if (sync_type == 's')
+     .      .  503:         {
+     .      .  504:             clock_gettime(CLOCK_MONOTONIC, &start_time);
+   532    532  505:             while (__sync_lock_test_and_set(spin_locks + list_num, 1));
+     .      .  506:             clock_gettime(CLOCK_MONOTONIC, &end_time);
+     .      1  507:             wait_time += get_nanosec_from_timespec(&end_time) - get_nanosec_from_timespec(&start_time);
+     .      .  508:             
+     .     59  509:             element = SortedList_lookup(listheads + list_num, pool[i].key);
+     .      .  510:             if (element == NULL)
+     .      .  511:             {
+     .      .  512:                 fprintf(stderr, "element not found in this sorted list\n");
+     .      .  513:                 exit(2);
+     .      .  514:             }
+     .      .  515:             if (SortedList_delete(element) == 1)
+     .      .  516:             {
+     .      .  517:                 fprintf(stderr, "prev/next of this element is corrupted\n");
+     .      .  518:                 exit(2);
+     .      .  519:             }
+     .      .  520: 
+     .      .  521:             __sync_lock_release(spin_locks + list_num);
+     .      .  522: 
+     .      .  523:         }
+     .      .  524:         else if (sync_type != 'm' && sync_type != 's')
+     .      .  525:         {
+     .      .  526:             element = SortedList_lookup(listheads + list_num, pool[i].key);
+     .      .  527:             if (element == NULL)
+     .      .  528:             {
+     .      .  529:                 fprintf(stderr, "element not found in this sorted list\n");
+     .      .  530:                 exit(2);
+     .      .  531:             }
+     .      .  532:             if (SortedList_delete(element) == 1)
+     .      .  533:             {
+     .      .  534:                 fprintf(stderr, "prev/next of this element is corrupted\n");
+     .      .  535:                 exit(2);
+     .      .  536:             }
+     .      .  537:         }
+     .      .  538:     }
+     .      .  539:     
+     .      .  540:     return (void *) wait_time;
+     .      .  541: }
+---
+     .      .  542: 
+     .      .  543: void segfault_handler (int sig)
+     .      .  544: {
+     .      .  545:     if (sig == SIGSEGV)
+     .      .  546:     {
