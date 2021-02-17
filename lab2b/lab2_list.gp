@@ -1,3 +1,7 @@
+# NAME: Zhengtong Liu
+# EMAIL: ericliu2023@g.ucla.edu
+# ID: 505375562
+
 #! /usr/bin/gnuplot
 
 # general plot parameters

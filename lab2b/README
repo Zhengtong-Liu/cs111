@@ -21,9 +21,97 @@ QUESTION 2.3.1 - Cycles in the basic list implementation:
 
 
 QUESTION 2.3.2 - Execution Profiling:
-Where (what lines of code) are consuming most of the cycles when the spin-lock version of the list exerciser is run with a large number of threads?
 
-Why does this operation become so expensive with large numbers of threads?
+    From profile.out, the lines
+        while (__sync_lock_test_and_set(spin_locks + list_num, 1));
+        while (__sync_lock_test_and_set(spin_locks + list_num, 1));
+    (the same line at different places)
+    are consuming most of cycles when the spin-lock version of the list exerciser is running
+    with a large number of threads, as expected. 
 
-From profile.out, it seems that the line 
+    Note that the spin lock function __sync_lock_test_and_set() would be executed many times
+    before one thread can actually acquire the lock and continue executing due to the high
+    contention for the locked resources (i.e. the critical sections have to be locked to many threads
+    while one thread is doing the list operations to avoid race conditions) with large numbers of threads. 
+    Therefore, much CPU time would actually be wasted by this while loop as it keeps spinning
+    to acquire the spin lock. 
+
+
+QUESTION 2.3.3 - Mutex Wait Time:
+
+    The average lock-wait time rise dramatically with the number of contending threads. When there is one thread,
+    the thread do not need to wait for other threads to finish executing the critical section and unlock the mutex lock.
+    Therefore, the average wait time per operation is low. However, as the number of contending threads grows,
+    the contention for the locked resources is high, as multiple threads may have wait a long time to acquire the same lock to execute 
+    the critcial sections. Thus, the wait time for the mutex lock would rises dramatically with higher number of threads.
+
+    Note that the completion time per operation rise since contending threads have to wait a longer time 
+    for the mutex locks to aquire the resources as with larger numbers of threads. However, the mutex lock
+    would not keep spinning as the spin-lock. In fact, at least one thread would be executing the critical sections
+    and doing meaningful operations at every time, so the average completion time rises less dramatically.
+
+    The wait time per operation goes higher than the completion time per operation. Since the wait time is counted
+    per thread and then added up together, and multiple threads might wait for the same lock, the waiting time might 
+    overlap betweeen different threads. However, the completion time per operaiton only count the overall time per 
+    operation in the parent thread, and does not count the time per thread. Thus, the wait time per operation becomes 
+    higher than the completion time per operation when the # of threads becomes larger.
+
+
+QUESTION 2.3.4 - Performance of Partitioned Lists
+
+    Generally, the performance of the synchronized methods improves as the number of lists increases, and this is true
+    for different number of threads from the graph. With larger number of sublists, multiple threads do not have to wait
+    for the single lock. Instead, the requests for the locks would spread among sublists, thus decreasing the wait time
+    and increases the number of operations per time. In other words, the throughput increases with larger numbers of lists.
+
+    As the number of lists continue increases, the throughput would increase, until it reaches a limit. This is because
+    as the number of lists becomes large enough, every sortedlist element would have its own sublist. At this time, larger
+    number of threads would not increase throughput since one thread no larger need to wait for another as one element has its own
+    sublist. 
+
+    The suggestion that the throughput of an N-way partitioned list should be equivalent to the throughput of a single list with 
+    fewer (1/N) threads seems to be true to some extent from the graphs. As seen in the 4th and 5th graphs, the throughput
+    of N-way partitioned list at threads=N is roughly at the same level with the throughput of the single list with 1 thread,
+    but not exactly. Note that the match is less obvious for larger number of lists, probably due to the fact that
+    the number of cores is limited anyway, so the parallelism achieved through dividing lists might not so scalable with large 
+    number of lists.
+
+
+
+Files:
+
+    lab2_list.c ... the source for a C program that compiles cleanly, 
+        and implements the specified command line options 
+        (--threads, --iterations, --yield, --sync, --lists), 
+        drives one or more parallel threads that do operations on 
+        a shared linked list, and reports on the final list and performance
+
+    SortedList.c ... the source for a C source module that compiles cleanly,
+        and implements insert, delete, lookup, and length methods for a sorted doubly 
+        linked list, including correct placement of pthread_yield calls
+
+    SortedList.h ... a header file containing interfaces for linked list operations
+
+    lab2b_1.png ... throughput vs. number of threads for mutex and spin-lock synchronized list operations.
+    lab2b_2.png ... mean time per mutex wait and mean time per operation for mutex-synchronized list operations.
+    lab2b_3.png ... successful iterations vs. threads for each synchronization method.
+    lab2b_4.png ... throughput vs. number of threads for mutex synchronized partitioned lists.
+    lab2b_5.png ... throughput vs. number of threads for spin-lock-synchronized partitioned lists.
+
+    lab2b_list.csv ... containing results for all test runs
+
+    Makefile
+        Targets:
+            default ... the lab2_list executable (compiling with the -Wall and -Wextra options).
+            tests ... run all specified test cases to generate CSV results
+            profile ... run tests with profiling tools to generate an execution profiling report
+            graphs ... use gnuplot to generate the required graphs
+            dist ... create the deliverable tarball
+            clean ... delete all programs and output generated by the Makefile
     
+    profile.out ... execution profiling report showing where time was spent in 
+        the un-partitioned spin-lock implementation
+
+    test.sh ... test script file
+
+    lab2_list.gp ... gnuplot script that plots the graphs
