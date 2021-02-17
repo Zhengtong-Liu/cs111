@@ -1,3 +1,29 @@
 # NAME: Zhengtong Liu
 # EMAIL: ericliu2023@g.ucla.edu
 # ID: 505375562
+
+QUESTION 2.3.1 - Cycles in the basic list implementation:
+
+    In the 1 and 2-thread list tests, I believe most of the cycles are spent doing the list operations,
+    like insert, look up, delete etc. When the number of threads is small, the contention of the locked
+    resources is not so high, so locks can be acquired quickly, i.e. threads probably do not have to wait
+    a long time for the locks. Therefore, most of the cycles are spent doing the actual operations, and in
+    this case, the list operations.
+
+    In high-thread spin-lock tests, most of the time/cycles are spent spinning. Due to the increasd contention
+    for the locked resources, many threads that wait for the locks to be unlocked 
+    would be stuck spinning while trying to acquire the locks. 
+
+    In high-thread mutex tests, most of the time/cycles are spent executing mutex related functions. For example,
+    a large number of mutex locks have to be initialized; different threads may try to acquire the same lock, also
+    known as thundering herd problem due to the high contention for the locked resources. The context switches during
+    rescheduling also accouts for a large amount of CPU time.
+
+
+QUESTION 2.3.2 - Execution Profiling:
+Where (what lines of code) are consuming most of the cycles when the spin-lock version of the list exerciser is run with a large number of threads?
+
+Why does this operation become so expensive with large numbers of threads?
+
+From profile.out, it seems that the line 
+    
