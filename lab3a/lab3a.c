@@ -1,7 +1,7 @@
 /*
- NAME:	Zhengtong Liu
- EMAIL: ericliu2023@g.ucla.edu
- ID:    505375562
+ NAME:	Bryan Tang, Zhengtong Liu
+ EMAIL: tangtang1228@ucla.edu, ericliu2023@g.ucla.edu
+ ID:    605318712, 505375562
 */
 
 #include <stdio.h>
@@ -30,13 +30,14 @@ uint32_t inodeSize;
 int numOfGroups;
 
 void pread_error();
+void close_and_exit();
 void superblock_summary();
 void group_summary();
 void get_time_GMT(time_t t, char* buffer);
 unsigned long get_offset (int block);
 char get_filetype (__u16 i_mode);
-void directory_entries(struct ext2_inode* inode, int inode_num);
-void indirect_summary (unsigned int inode_num, unsigned int block_num, int l, char file_tyle, struct ext2_inode* inode);
+void directory_entries(unsigned int block_num, int inode_num);
+void indirect_summary (unsigned int inode_num, unsigned int block_num, int l, int start_offset, char file_tyle);
 void inode_summary (unsigned int offset, unsigned int inode_num);
 void scan_free_block(int num, unsigned int block);
 void scan_inode (int num, int block, int inode_table_index);
@@ -47,9 +48,23 @@ void pread_error()
     exit(1);
 }
 
+void close_and_exit()
+{
+    if (close(fd) < 0)
+    {
+        fprintf(stderr, "Error when closing the file: %s\n", strerror(errno));
+        exit(2);
+    }
+}
+
 void superblock_summary() {
     if(pread(fd, &sb, sizeof(struct ext2_super_block), SB_OFFSET) < 0){
         pread_error();
+    }
+    if (sb.s_magic != EXT2_SUPER_MAGIC)
+    {
+        fprintf(stderr, "Error with superblock by checking the s_magic field\n");
+        exit(2);
     }
     blockSize = 1024 << sb.s_log_block_size;
     fprintf(stdout, "SUPERBLOCK,%d,%d,%d,%d,%d,%d,%d\n", 
@@ -68,19 +83,13 @@ void group_summary() {
 
     group = malloc(numOfGroups * sizeof(struct ext2_group_desc));
 
-    uint32_t start_index = 0;
-    if (blockSize > 1024)
-        start_index = 1;
-    else
-        start_index = 2;
-
     for (int i = 0; i < numOfGroups; i++){
-        if(pread(fd, &group[i], sizeof(struct ext2_group_desc), start_index * blockSize + i * sizeof(struct ext2_group_desc)) < 0){
+        if(pread(fd, &group[i], sizeof(struct ext2_group_desc), SB_OFFSET + blockSize + i * sizeof(struct ext2_group_desc)) < 0){
             pread_error();
         }
         // if the last group, will contain the remainder of the blocks
         int blocksPerGroup = (i == numOfGroups-1) ? (sb.s_blocks_count % sb.s_blocks_per_group) : sb.s_blocks_per_group;
-        int inodesPerGroup = (i == numOfGroups-1) ? (sb.s_inodes_count % sb.s_inodes_per_group) : sb.s_inodes_per_group;
+        int inodesPerGroup = (i == numOfGroups-1 && i != 0) ? (sb.s_inodes_count % sb.s_inodes_per_group) : sb.s_inodes_per_group;
         fprintf(stdout, "GROUP,%d,%d,%d,%d,%d,%d,%d,%d\n",
             i, //group number
             blocksPerGroup, //total number of blocks in this group
@@ -157,24 +166,23 @@ char get_filetype (__u16 i_mode)
     return file_type;
 }
 
-void directory_entries(struct ext2_inode* inode, int inode_num)
+void directory_entries(unsigned int block_num, int inode_num)
 {
     dir_entry = malloc(sizeof(struct ext2_dir_entry));
     unsigned int iter = 0;
-    for (int k = 0; k < 12; k++)
-    {
-        if (inode -> i_block[k] != 0)
+
+        if (block_num != 0)
         {
             while(iter < blockSize)
             {
-                if(pread(fd, dir_entry, sizeof(struct ext2_dir_entry), get_offset(inode -> i_block[k]) + iter) < 0)
+                if(pread(fd, dir_entry, sizeof(struct ext2_dir_entry), get_offset(block_num) + iter) < 0)
                     pread_error();
                 if(dir_entry -> inode != 0)
                 {
                     char file_name[EXT2_NAME_LEN+1];
                     memcpy(file_name, dir_entry -> name, dir_entry -> name_len);
                     file_name[dir_entry -> name_len] = 0;
-                    fprintf(stdout, "DIRECT,%d,%d,%d,%d,%d,'%s'\n",
+                    fprintf(stdout, "DIRENT,%d,%d,%d,%d,%d,'%s'\n",
                         inode_num,
                         iter,
                         dir_entry -> inode,
@@ -185,49 +193,46 @@ void directory_entries(struct ext2_inode* inode, int inode_num)
                 iter += dir_entry -> rec_len;
             }
         }
-    }
+
 
     free(dir_entry);
 }
 
-void indirect_summary (unsigned int inode_num, unsigned int block_num, int l, char file_tyle, struct ext2_inode* inode)
+void indirect_summary (unsigned int inode_num, unsigned int block_num, int l, int start_offset, char file_tyle)
 {
     uint32_t *block_pts = malloc(blockSize);
     unsigned long offset = get_offset(block_num);
     if(pread(fd, block_pts, blockSize, offset) < 0)
         pread_error();
     
-    int logical_offset = 0;
     int i_block_num = blockSize/4;
-    switch (l)
-    {
-    case 1:
-        logical_offset = 12;
-        break;
-    case 2:
-        logical_offset = i_block_num + 12;
-        break;
-    case 3:
-        logical_offset = i_block_num*i_block_num + i_block_num + 12;
-    default:
-        break;
-    }
 
     for (int k = 0; k < i_block_num; k++)
     {
         if (block_pts[k] != 0)
         {
-            if (file_tyle == 'd')
-                directory_entries(inode, inode_num);
+            int logical_offset = start_offset;
+            if (l == 1)
+                logical_offset += k;
+            else if (l == 2)
+            {
+                int second_start_offset = start_offset + i_block_num * k;
+                indirect_summary(inode_num, block_pts[k], l-1, second_start_offset, file_tyle);
+            }
+            else
+            {
+                int third_start_offset = start_offset + i_block_num * i_block_num * k;
+                indirect_summary(inode_num, block_pts[k], l-1, third_start_offset, file_tyle);
+            }
+            if (file_tyle == 'd' && l == 1)
+                directory_entries(block_pts[k], inode_num);
             fprintf(stdout, "INDIRECT,%d,%d,%d,%d,%d\n",
             inode_num,
             l,
-            logical_offset+k,
+            logical_offset,
             block_num,
             block_pts[k]);
         }
-        if (l > 1)
-            indirect_summary(inode_num, block_pts[k], l-1, file_tyle, inode);
     }
 
     free(block_pts);
@@ -242,6 +247,10 @@ void inode_summary (unsigned int offset, unsigned int inode_num)
     
     char file_type = get_filetype(inode.i_mode);
 
+    // check for non-zero mode and links count
+    if ((!inode.i_mode) || (!inode.i_links_count))
+        return;
+    
     char creation_time[20];
     char modified_time[20];
     char access_time[20];
@@ -263,26 +272,40 @@ void inode_summary (unsigned int offset, unsigned int inode_num)
         inode.i_blocks // num of blocks
     );
     
+    // symbolic link case not sure
     if (file_type == 's' && inode.i_size < 60)
         fprintf(stdout, ",%u", inode.i_block[0]);
     else
     {
-        for (unsigned int k = 0; k < 15; k++)
-            fprintf(stdout, ",%u", inode.i_block[k]);
+        for (int i = 0; i < 15; i++)
+            fprintf(stdout, ",%u", inode.i_block[i]);
         fprintf(stdout, "\n");
 
+        //12 direct
         if (file_type == 'd')
-            directory_entries(&inode, inode_num);
-
-        // indirect
-        if (inode.i_block[EXT2_IND_BLOCK] != 0)
-            indirect_summary(inode_num, inode.i_block[EXT2_IND_BLOCK], 1, file_type, &inode);
+        {
+            for (int k = 0; k < 12; k++)
+            {
+                unsigned int block_num = inode.i_block[k];
+                directory_entries(block_num, inode_num);
+            }
+        }
             
-        if (inode.i_block[EXT2_DIND_BLOCK] != 0)
-            indirect_summary(inode_num, inode.i_block[EXT2_DIND_BLOCK], 2, file_type, &inode);
-
-        if (inode.i_block[EXT2_TIND_BLOCK] != 0)
-            indirect_summary(inode_num, inode.i_block[EXT2_TIND_BLOCK], 3, file_type, &inode);
+        // indirect
+        if (inode.i_block[EXT2_IND_BLOCK] != 0) // 13th
+            indirect_summary(inode_num, inode.i_block[EXT2_IND_BLOCK], 1, 12,file_type);
+            
+        if (inode.i_block[EXT2_DIND_BLOCK] != 0) // 14th
+        {
+            int start_offset = blockSize / 4 + 12;
+            indirect_summary(inode_num, inode.i_block[EXT2_DIND_BLOCK], 2, start_offset,file_type);
+        }
+        
+        if (inode.i_block[EXT2_TIND_BLOCK] != 0) // 15th
+        {
+            int start_offset = (blockSize / 4) * (blockSize / 4) + (blockSize / 4) + 12;
+            indirect_summary(inode_num, inode.i_block[EXT2_TIND_BLOCK], 3, start_offset,file_type);
+        }
     }
     
 
@@ -334,9 +357,11 @@ int main(int argc, char* argv[]){
 
     if((fd = open(argv[1], O_RDONLY)) < 0)
     {
-        fprintf(stderr, "%s\n", "Fail to mount disk image" );
+        fprintf(stderr, "%s: %s\n", "Fail to mount disk image", strerror(errno));
         exit(2);
     }
+    atexit(1);
+
     superblock_summary();
     group_summary();
 }
