@@ -360,7 +360,7 @@ int main(int argc, char* argv[]){
         fprintf(stderr, "%s: %s\n", "Fail to mount disk image", strerror(errno));
         exit(2);
     }
-    atexit(1);
+    atexit(close_and_exit);
 
     superblock_summary();
     group_summary();
