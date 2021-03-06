@@ -7,6 +7,7 @@
 #include <string.h>
 #include <errno.h>
 #include <poll.h>
+#include <math.h>
 #include <mraa.h>
 #include <mraa/aio.h>
 
@@ -56,6 +57,10 @@
 #define R0 100000.0
 int run_flag = 1;
 FILE *log_file = NULL;
+char scale = 'F';
+
+mraa_gpio_context button;
+mraa_aio_context temper;
 
 struct opts {
     int period;
@@ -64,9 +69,9 @@ struct opts {
 };
 
 void read_options (int argc, char* argv[], struct opts* opts);
-float convert_temper_reading (int reading, char scale);
-char* print_current_time (void);
-void do_when_pushed (void * arg);
+float convert_temper_reading (int reading);
+void print_current_time ();
+void do_when_pushed ();
 void my_print(bool to_stdout, char* str);
 
 int main (int argc, char **argv)
@@ -74,8 +79,7 @@ int main (int argc, char **argv)
     struct opts options;
     read_options(argc, argv, &options);
 
-    mraa_gpio_context button;
-    mraa_aio_context temper;
+    scale = options.scale;
 
     button = mraa_gpio_init(60);
     if (button == NULL) {
@@ -93,16 +97,11 @@ int main (int argc, char **argv)
     mraa_gpio_dir(button, MRAA_GPIO_IN);
     mraa_gpio_isr(button, MRAA_GPIO_EDGE_RISING, do_when_pushed, NULL);
 
-    struct pollfd pollStdin = {0, POLLIN, 0};
+    // struct pollfd pollStdin = {0, POLLIN, 0};
 
     while (run_flag)
     {
-        char* current_time = print_current_time();
-        int raw_temp = mraa_aio_read(temper);
-        float temp = convert_temper_reading(raw_temp, options.scale);
-        char output[256];
-        sprintf(output, "%s %d.%1d", current_time, temp/10, temp%10);
-        my_print(true, output);
+        print_current_time();
     }
 
 
@@ -149,15 +148,15 @@ void read_options (int argc, char* argv[], struct opts* opts)
             break;
         case 'l':
             opts -> log_path = optarg;
-            log_file = fopen(opts -> log_path, 'w+');
-            if (log_file = NULL) {
-                fprintf("cannot open the file: %s: %s\n", opts -> log_path, strerror(errno));
+            log_file = fopen(opts -> log_path, "w+");
+            if (log_file == NULL) {
+                fprintf(stderr, "cannot open the file: %s: %s\n", opts -> log_path, strerror(errno));
                 exit(1);
             }
             break;
         default:
             fprintf(stderr, "%s: Incorrect usage\n", argv[0]);
-            fprintf(stderr, "usage: ./lab4b [--period=N --scale=C/F --log=log_file]\n");
+            fprintf(stderr, "usage: ./lab4b [--period=N --scale=F/C --log=log_file]\n");
             exit(1);
         }
     }
@@ -173,7 +172,7 @@ void read_options (int argc, char* argv[], struct opts* opts)
     
 }
 
-float convert_temper_reading (int reading, char scale)
+float convert_temper_reading (int reading)
 {
     float R = 1023.0/((float) reading) - 1.0;
     R = R0 * R;
@@ -187,7 +186,7 @@ float convert_temper_reading (int reading, char scale)
         return F;
 }
 
-char* print_current_time (void)
+void print_current_time ()
 {
     struct timespec ts;
     struct tm *tm;
@@ -195,11 +194,26 @@ char* print_current_time (void)
     tm = localtime(&(ts.tv_sec));
     char current_time[256];
     sprintf(current_time, "%2d:%2d:%2d", tm -> tm_hour, tm -> tm_min, tm -> tm_sec);
-    return current_time;
+
+    int raw_temp = mraa_aio_read(temper);
+    float float_temp = convert_temper_reading(raw_temp);
+    int temp = float_temp * 10;
+
+    char output[256];
+    sprintf(output, "%s %d.%1d", current_time, temp/10, temp%10);
+
+    my_print(true, output);
+
 }
 
-void do_when_pushed (void * arg) {
-    char* current_time = print_current_time();
+void do_when_pushed () {
+    struct timespec ts;
+    struct tm *tm;
+    clock_gettime(CLOCK_REALTIME, &ts);
+    tm = localtime(&(ts.tv_sec));
+    char current_time[256];
+    sprintf(current_time, "%2d:%2d:%2d", tm -> tm_hour, tm -> tm_min, tm -> tm_sec);
+    
     char output[256];
     sprintf(output, "%s SHUTDOWN\n", current_time);
     my_print(true, output);
