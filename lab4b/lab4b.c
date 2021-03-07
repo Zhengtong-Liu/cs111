@@ -8,62 +8,27 @@
 #include <errno.h>
 #include <poll.h>
 #include <math.h>
+#include <unistd.h>
+#include <ctype.h>
 #include <mraa.h>
 #include <mraa/aio.h>
 
-// #ifdef DUMMY
-// #define MRAA_GPIO_IN 0
-// typedef int mraa_aio_context;
-// typedef int mraa_gpio_context;
-
-// mraa_aio_context mraa_aio_init (int p) {
-//     return 0;
-// }
-
-// void mraa_deinit () {
-
-// }
-
-// int mraa_aio_read (mraa_aio_context c) {
-//     return 650;
-// }
-
-// void mraa_aio_close (mraa_aio_context c) {
-
-// }
-
-// mraa_gpio_context mraa_gpio_init (int p) {
-//     return 0;
-// }
-
-// void mraa_gpio_dir (mraa_gpio_context c, int d) {
-
-// }
-
-// int mraa_gpio_read (mraa_gpio_context c) {
-//     return 0;
-// }
-
-// void mraa_gpio_close (mraa_gpio_context c) {
-
-// }
-
-// #else
-// #include <mraa.h>
-// #include <mraa/aio.h>
-// #endif
 
 #define B 4275
 #define R0 100000.0
 int run_flag = 1;
 FILE *log_file = NULL;
 char scale = 'F';
+time_t period = 0;
+
+struct timespec ts;
+struct tm *tm;
 
 mraa_gpio_context button;
 mraa_aio_context temper;
 
 struct opts {
-    int period;
+    time_t period;
     char scale;
     char* log_path;
 };
@@ -72,7 +37,9 @@ void read_options (int argc, char* argv[], struct opts* opts);
 float convert_temper_reading (int reading);
 void print_current_time ();
 void do_when_pushed ();
+void close_and_exit ();
 void my_print(bool to_stdout, char* str);
+void process_commands (char* buffer);
 
 int main (int argc, char **argv)
 {
@@ -80,6 +47,7 @@ int main (int argc, char **argv)
     read_options(argc, argv, &options);
 
     scale = options.scale;
+    period = options.period;
 
     button = mraa_gpio_init(60);
     if (button == NULL) {
@@ -94,19 +62,39 @@ int main (int argc, char **argv)
         return EXIT_FAILURE;
     }
 
+    atexit(close_and_exit);
+
     mraa_gpio_dir(button, MRAA_GPIO_IN);
     mraa_gpio_isr(button, MRAA_GPIO_EDGE_RISING, do_when_pushed, NULL);
 
-    // struct pollfd pollStdin = {0, POLLIN, 0};
+    struct pollfd pollStdin = {0, POLLIN, 0};
+    char* buffer = (char*) malloc(sizeof(char) * 2000);
 
-    while (run_flag)
+    clock_gettime(CLOCK_REALTIME, &ts);
+    time_t start_time = ts.tv_sec;
+    while (true)
     {
-        print_current_time();
+        clock_gettime(CLOCK_REALTIME, &ts);
+        time_t current_time = ts.tv_sec;
+        if (run_flag && current_time >= start_time)
+            print_current_time();
+        start_time += period;
+
+        int ret = poll(&pollStdin, 1, 1000);
+        if (ret >= 1)
+        {
+            read(stdin, buffer, sizeof(buffer));
+            process_commands(buffer);
+        }
+        else if (ret < 0)
+        {
+            fprintf(stderr, "error with poll: %s\n", strerror(errno));
+            exit(1);
+        }
+
     }
 
-
-    mraa_gpio_close(button);
-    mraa_aio_close(temper);
+    free(buffer);
     exit(0);
 
 }
@@ -188,36 +176,33 @@ float convert_temper_reading (int reading)
 
 void print_current_time ()
 {
-    struct timespec ts;
-    struct tm *tm;
     clock_gettime(CLOCK_REALTIME, &ts);
+
     tm = localtime(&(ts.tv_sec));
     char current_time[256];
-    sprintf(current_time, "%2d:%2d:%2d", tm -> tm_hour, tm -> tm_min, tm -> tm_sec);
+    sprintf(current_time, "%.2d:%.2d:%.2d", tm -> tm_hour, tm -> tm_min, tm -> tm_sec);
 
     int raw_temp = mraa_aio_read(temper);
     float float_temp = convert_temper_reading(raw_temp);
-    int temp = float_temp * 10;
 
     char output[256];
-    sprintf(output, "%s %d.%1d", current_time, temp/10, temp%10);
+    sprintf(output, "%s %.1f", current_time, float_temp);
 
     my_print(true, output);
 
 }
 
 void do_when_pushed () {
-    struct timespec ts;
-    struct tm *tm;
     clock_gettime(CLOCK_REALTIME, &ts);
     tm = localtime(&(ts.tv_sec));
     char current_time[256];
-    sprintf(current_time, "%2d:%2d:%2d", tm -> tm_hour, tm -> tm_min, tm -> tm_sec);
+    sprintf(current_time, "%.2d:%.2d:%.2d", tm -> tm_hour, tm -> tm_min, tm -> tm_sec);
     
     char output[256];
     sprintf(output, "%s SHUTDOWN\n", current_time);
     my_print(true, output);
-    run_flag = 0;
+    
+    exit(0);
 }
 
 void my_print(bool to_stdout, char* str)
@@ -230,4 +215,60 @@ void my_print(bool to_stdout, char* str)
 
     if (to_stdout)
         fprintf(stdout, "%s\n", str);
+}
+
+void close_and_exit ()
+{
+    mraa_gpio_close(button);
+    mraa_aio_close(temper);
+}
+
+void process_commands (char* buffer)
+{
+    // first process the input
+    buffer[strlen(buffer) - 1] = '\0';
+    while (buffer[0] == '\t' || buffer[0] == ' ')
+        buffer++;
+    
+    if (strcmp(buffer, "START") == 0) {
+        my_print(false, buffer);
+        run_flag = 1;
+    }
+    else if (strcmp(buffer, "STOP") == 0) {
+        my_print(false, buffer);
+        run_flag = 0;
+    }
+    else if (strcmp(buffer, "SCALE=F") == 0) {
+        my_print(false, buffer);
+        scale = 'F';
+    }
+    else if (strcmp(buffer, "SCALE=C") == 0) {
+        my_print(false, buffer);
+        scale = 'C';
+    }
+    else if (strcmp(buffer, "OFF") == 0) {
+        my_print(false, buffer);
+        do_when_pushed();
+    }
+    else if (strncmp(buffer, "PERIOD=", 7) == 0) {
+        my_print(false, buffer);
+        char* str_period = buffer + 7;
+        if (str_period != NULL)
+        {
+            while (str_period != NULL)
+            {
+                if (isdigit(str_period[0]) > 0)
+                    continue;
+                else
+                    return;
+            }
+            if (atoi(str_period) <= 0) return;
+            period = atoi(str_period);
+        }
+    }
+    else if (strncmp(buffer, "LOG", 3) == 0) {
+        my_print(false, buffer);
+    }
+
+    return;
 }
