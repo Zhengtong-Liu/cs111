@@ -6,6 +6,7 @@
 #include <time.h>
 #include <string.h>
 #include <errno.h>
+#include <signal.h>
 #include <poll.h>
 #include <math.h>
 #include <unistd.h>
@@ -19,7 +20,8 @@
 int run_flag = 1;
 FILE *log_file = NULL;
 char scale = 'F';
-time_t period = 0;
+int period = 0;
+time_t start_time = 0;
 
 struct timespec ts;
 struct tm *tm;
@@ -28,7 +30,7 @@ mraa_gpio_context button;
 mraa_aio_context temper;
 
 struct opts {
-    time_t period;
+    int period;
     char scale;
     char* log_path;
 };
@@ -67,29 +69,20 @@ int main (int argc, char **argv)
     mraa_gpio_dir(button, MRAA_GPIO_IN);
     mraa_gpio_isr(button, MRAA_GPIO_EDGE_RISING, do_when_pushed, NULL);
 
-    struct pollfd pollStdin = {0, POLLIN, 0};
-    char* buffer = (char*) malloc(sizeof(char) * 2000);
+    struct pollfd pollStdin = {STDIN_FILENO, POLLIN, 0};
+    char* buffer = (char*) malloc(sizeof(char) * 256);
 
-    clock_gettime(CLOCK_REALTIME, &ts);
-    time_t start_time = ts.tv_sec;
+
     while (true)
     {
-        clock_gettime(CLOCK_REALTIME, &ts);
-        time_t current_time = ts.tv_sec;
-        if (run_flag && current_time >= start_time)
-            print_current_time();
-        start_time += period;
+        print_current_time();
 
-        int ret = poll(&pollStdin, 1, 1000);
-        if (ret >= 1)
+        int ret = poll(&pollStdin, 1, 0);
+        if (ret > 0)
         {
-            read(stdin, buffer, sizeof(buffer));
+            fgets(buffer, 256, stdin);
+            // fprintf(stdout, "input buffer is %s\n", buffer);
             process_commands(buffer);
-        }
-        else if (ret < 0)
-        {
-            fprintf(stderr, "error with poll: %s\n", strerror(errno));
-            exit(1);
         }
 
     }
@@ -177,18 +170,21 @@ float convert_temper_reading (int reading)
 void print_current_time ()
 {
     clock_gettime(CLOCK_REALTIME, &ts);
+    if (run_flag && ts.tv_sec >= start_time)
+    {
+        tm = localtime(&(ts.tv_sec));
+        char current_time[256];
+        sprintf(current_time, "%.2d:%.2d:%.2d", tm -> tm_hour, tm -> tm_min, tm -> tm_sec);
 
-    tm = localtime(&(ts.tv_sec));
-    char current_time[256];
-    sprintf(current_time, "%.2d:%.2d:%.2d", tm -> tm_hour, tm -> tm_min, tm -> tm_sec);
+        int raw_temp = mraa_aio_read(temper);
+        float float_temp = convert_temper_reading(raw_temp);
 
-    int raw_temp = mraa_aio_read(temper);
-    float float_temp = convert_temper_reading(raw_temp);
+        char output[256];
+        sprintf(output, "%s %.1f", current_time, float_temp);
 
-    char output[256];
-    sprintf(output, "%s %.1f", current_time, float_temp);
-
-    my_print(true, output);
+        my_print(true, output);
+        start_time = ts.tv_sec + period;
+    }
 
 }
 
@@ -199,7 +195,7 @@ void do_when_pushed () {
     sprintf(current_time, "%.2d:%.2d:%.2d", tm -> tm_hour, tm -> tm_min, tm -> tm_sec);
     
     char output[256];
-    sprintf(output, "%s SHUTDOWN\n", current_time);
+    sprintf(output, "%s SHUTDOWN", current_time);
     my_print(true, output);
     
     exit(0);
@@ -227,12 +223,16 @@ void process_commands (char* buffer)
 {
     // first process the input
     buffer[strlen(buffer) - 1] = '\0';
-    while (buffer[0] == '\t' || buffer[0] == ' ')
+    while (*buffer == '\t' || *buffer == ' ')
         buffer++;
     
     if (strcmp(buffer, "START") == 0) {
         my_print(false, buffer);
+
+        // fprintf(stdout, "the running flag is %d\n", run_flag);
+
         run_flag = 1;
+        // fprintf(stdout, "the running flag is %d\n", run_flag);
     }
     else if (strcmp(buffer, "STOP") == 0) {
         my_print(false, buffer);
@@ -251,24 +251,30 @@ void process_commands (char* buffer)
         do_when_pushed();
     }
     else if (strncmp(buffer, "PERIOD=", 7) == 0) {
-        my_print(false, buffer);
-        char* str_period = buffer + 7;
+        char* str_period = buffer;
+        str_period = str_period + 7;
+        // fprintf(stdout, "period string is %s\n", str_period);
         if (str_period != NULL)
         {
-            while (str_period != NULL)
-            {
-                if (isdigit(str_period[0]) > 0)
-                    continue;
-                else
-                    return;
-            }
-            if (atoi(str_period) <= 0) return;
-            period = atoi(str_period);
+            // while (str_period != NULL)
+            // {
+            //     if (isdigit(str_period[0]) > 0)
+            //         continue;
+            //     else
+            //         return;
+            //     str_period++;
+            // }
+            int temp = atoi(str_period);
+            if (temp <= 0)
+                return;
+            else
+                period = temp;
+            // fprintf(stdout, "period is %d\n", period);
         }
+        my_print(false, buffer);
     }
     else if (strncmp(buffer, "LOG", 3) == 0) {
         my_print(false, buffer);
     }
 
-    return;
 }
