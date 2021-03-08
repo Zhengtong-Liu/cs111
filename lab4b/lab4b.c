@@ -17,40 +17,58 @@
 
 #define B 4275
 #define R0 100000.0
+
+// whether to run, based on START or STOP (default set to 1)
 int run_flag = 1;
+// the log file 
 FILE *log_file = NULL;
+// temperature scale (default set to F)
 char scale = 'F';
+// period, set to 0, will be set to 1 as default
 int period = 0;
+// to keep track of the next print time (whether to print)
 time_t start_time = 0;
 
+// for getting time
 struct timespec ts;
 struct tm *tm;
 
+// gpio and aio
 mraa_gpio_context button;
 mraa_aio_context temper;
 
+// options structure
 struct opts {
     int period;
     char scale;
     char* log_path;
 };
 
+// read options from command line inputs
 void read_options (int argc, char* argv[], struct opts* opts);
+// convert temperature from raw reading to F or C
 float convert_temper_reading (int reading);
+// print the time with the temperature
 void print_current_time ();
+// do when the button is pushed
 void do_when_pushed ();
+// close the gpio and aio 
 void close_and_exit ();
+// print to stdout (or not) and log file
 void my_print(bool to_stdout, char* str);
+// process commands from stdin
 void process_commands (char* buffer);
 
 int main (int argc, char **argv)
 {
+    // get options from command line
     struct opts options;
     read_options(argc, argv, &options);
 
     scale = options.scale;
     period = options.period;
 
+    // initialize gpio and aio
     button = mraa_gpio_init(60);
     if (button == NULL) {
         fprintf(stderr, "Failed to initialize GPIO 60\n");
@@ -64,19 +82,29 @@ int main (int argc, char **argv)
         return EXIT_FAILURE;
     }
 
+    // close gpio and aio at exit
     atexit(close_and_exit);
 
     mraa_gpio_dir(button, MRAA_GPIO_IN);
     mraa_gpio_isr(button, MRAA_GPIO_EDGE_RISING, do_when_pushed, NULL);
 
+    // poll to get input from stdin
     struct pollfd pollStdin = {STDIN_FILENO, POLLIN, 0};
+    // malloc memory for input buffer
     char* buffer = (char*) malloc(sizeof(char) * 256);
-
+    if (buffer == NULL)
+    {
+        fprintf(stderr, "cannot allocate enough memory for buffer\n");
+        exit(1);
+    }
 
     while (true)
     {
+        // print time with temperature
         print_current_time();
 
+        // if receiving input from stdin, process input buffer, fgets would read
+        // until newline char, end of file
         int ret = poll(&pollStdin, 1, 0);
         if (ret > 0)
         {
@@ -113,6 +141,7 @@ void read_options (int argc, char* argv[], struct opts* opts)
         {
         case 'p':
             opts -> period = atoi(optarg);
+            // if period is less than or equal to 0, the period is invalid
             if (opts -> period <= 0)
             {
                 fprintf(stderr, "period cannot be less or equal to 0\n");
@@ -121,6 +150,7 @@ void read_options (int argc, char* argv[], struct opts* opts)
             break;
         case 's':
             opts -> scale = optarg[0];
+            // if the scale is not C or F, then scale is invalid
             if (opts -> scale != 'C' && opts -> scale != 'F')
             {
                 fprintf(stderr, "scale can only be F/C\n");
@@ -129,6 +159,7 @@ void read_options (int argc, char* argv[], struct opts* opts)
             break;
         case 'l':
             opts -> log_path = optarg;
+            // if cannot open (create) with write permission, then the log file path is invalid
             log_file = fopen(opts -> log_path, "w+");
             if (log_file == NULL) {
                 fprintf(stderr, "cannot open the file: %s: %s\n", opts -> log_path, strerror(errno));
@@ -170,25 +201,32 @@ float convert_temper_reading (int reading)
 void print_current_time ()
 {
     clock_gettime(CLOCK_REALTIME, &ts);
+    // if run flag is true, and we are in the next period, then print
     if (run_flag && ts.tv_sec >= start_time)
     {
+        // get local time
         tm = localtime(&(ts.tv_sec));
         char current_time[256];
         sprintf(current_time, "%.2d:%.2d:%.2d", tm -> tm_hour, tm -> tm_min, tm -> tm_sec);
 
+        // get temperature and convert it to specified scale
         int raw_temp = mraa_aio_read(temper);
         float float_temp = convert_temper_reading(raw_temp);
 
         char output[256];
         sprintf(output, "%s %.1f", current_time, float_temp);
 
+        // print to stdout and log file (if specified)
         my_print(true, output);
+        // set the time of the start of the next period
         start_time = ts.tv_sec + period;
     }
 
 }
 
+
 void do_when_pushed () {
+    // print time and shut down
     clock_gettime(CLOCK_REALTIME, &ts);
     tm = localtime(&(ts.tv_sec));
     char current_time[256];
@@ -203,12 +241,14 @@ void do_when_pushed () {
 
 void my_print(bool to_stdout, char* str)
 {
+    // print to log file if specified
     if (log_file != NULL)
     {
        fprintf(log_file, "%s\n", str);
        fflush(log_file); 
     }
 
+    // print to stdout if specified
     if (to_stdout)
         fprintf(stdout, "%s\n", str);
 }
@@ -226,6 +266,7 @@ void process_commands (char* buffer)
     while (*buffer == '\t' || *buffer == ' ')
         buffer++;
     
+    // switch requests of different commands
     if (strcmp(buffer, "START") == 0) {
         my_print(false, buffer);
 
