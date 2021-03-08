@@ -1,0 +1,28 @@
+NAME:	Zhengtong Liu
+EMAIL: ericliu2023@g.ucla.edu
+ID:    505375562
+
+Serial number of my Beaglebone: BBGW18040155
+
+Wifi MAC address:  2c:f7:f1:06:8f:9a
+
+Files:    
+    Makefile ... build the tarball
+
+    a selfie (my_beaglebone.jpg) of me holding my assembled 
+        Beaglebone (showing the front of the board).
+    
+    a screen shot (connected.png) from a USB terminal command session 
+        connected to my system, showing that I gave it a name and configured network access.
+
+    a screen shot (copy.png) from a local session in which I copy 
+        a hello world program from my laptop/desktop to my Beaglebone.
+
+    a screen shot (build_run.png) from a WIFI SSH session in which 
+        I build and run a trivial (hello world) program.
+
+    a screen shot (git.png) from a WIFI SSH session in which I install 
+    git and clone a repository.
+
+
+    README ... this file
