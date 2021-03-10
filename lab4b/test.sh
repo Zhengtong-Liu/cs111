@@ -21,7 +21,7 @@ else
 fi
 
 ./lab4b --scale=S &>/dev/null
-if [[$? -ne 1 ]
+if [ $? -ne 1 ]
 then
     echo "... error: invalid arguments"
 else
