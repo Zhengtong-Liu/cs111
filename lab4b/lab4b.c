@@ -18,12 +18,11 @@
 #ifdef DUMMY
 #define MRAA_GPIO_IN 0
 #define MRAA_GPIO_EDGE_RISING 0
-typedef char* mraa_aio_context;
-typedef char* mraa_gpio_context;
+typedef int mraa_aio_context;
+typedef int mraa_gpio_context;
 
 mraa_aio_context mraa_aio_init (int p) {
-    char* dummy = "dummy";
-    return dummy;
+    return 0;
 }
 void mraa_deinit () {
 
@@ -35,8 +34,7 @@ void mraa_aio_close (mraa_aio_context c) {
 
 }
 mraa_gpio_context mraa_gpio_init (int p) {
-    char* dummy = "dummy";
-    return dummy;
+    return 0;
 }
 void mraa_gpio_dir (mraa_gpio_context c, int d) {
 
@@ -109,18 +107,23 @@ int main (int argc, char **argv)
 
     // initialize gpio and aio
     button = mraa_gpio_init(60);
+    #ifndef DUMMY
     if (button == NULL) {
         fprintf(stderr, "Failed to initialize GPIO 60\n");
         mraa_deinit();
         return EXIT_FAILURE;
     }
+    #endif
     temper = mraa_aio_init(1);
+
+    #ifndef DUMMY
     if (temper == NULL) {
         fprintf(stderr, "Failed to initialize AIO 1\n");
         mraa_deinit();
         return EXIT_FAILURE;
     }
-
+    #endif
+    
     // close gpio and aio at exit
     atexit(close_and_exit);
 
