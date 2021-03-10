@@ -19,10 +19,10 @@ typedef int mraa_aio_context;
 typedef int mraa_gpio_context;
 
 mraa_aio_context mraa_aio_init (int p) {
-    return 0;
+    return 1;
 }
 void mraa_deinit () {
-    
+
 }
 int mraa_aio_read (mraa_aio_context c) {
     return 650;
@@ -31,7 +31,7 @@ void mraa_aio_close (mraa_aio_context c) {
 
 }
 mraa_gpio_context mraa_gpio_init (int p) {
-    return 0;
+    return 1;
 }
 void mraa_gpio_dir (mraa_gpio_context c, int d) {
 
@@ -40,7 +40,7 @@ void mraa_gpio_close (mraa_gpio_context c) {
 
 }
 
-void mraa_gpio_isr (mraa_gpio_context c, int edge, void(*)(void *) fptr, void* arg) {
+void mraa_gpio_isr (mraa_gpio_context c, int edge, void (* fptr) (void *), void* arg) {
 
 }
 #else
@@ -104,13 +104,13 @@ int main (int argc, char **argv)
 
     // initialize gpio and aio
     button = mraa_gpio_init(60);
-    if (button == NULL) {
+    if (button == 0) {
         fprintf(stderr, "Failed to initialize GPIO 60\n");
         mraa_deinit();
         return EXIT_FAILURE;
     }
     temper = mraa_aio_init(1);
-    if (temper == NULL) {
+    if (temper == 0) {
         fprintf(stderr, "Failed to initialize AIO 1\n");
         mraa_deinit();
         return EXIT_FAILURE;
