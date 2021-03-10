@@ -1,3 +1,6 @@
+// NAME: ZHENGTONG LIU
+// ID: 505375562
+// EMAIL: ericliu2023@g.ucla.edu
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -15,11 +18,12 @@
 #ifdef DUMMY
 #define MRAA_GPIO_IN 0
 #define MRAA_GPIO_EDGE_RISING 0
-typedef int mraa_aio_context;
-typedef int mraa_gpio_context;
+typedef char* mraa_aio_context;
+typedef char* mraa_gpio_context;
 
 mraa_aio_context mraa_aio_init (int p) {
-    return 1;
+    char* dummy = "dummy";
+    return dummy;
 }
 void mraa_deinit () {
 
@@ -31,7 +35,8 @@ void mraa_aio_close (mraa_aio_context c) {
 
 }
 mraa_gpio_context mraa_gpio_init (int p) {
-    return 1;
+    char* dummy = "dummy";
+    return dummy;
 }
 void mraa_gpio_dir (mraa_gpio_context c, int d) {
 
@@ -104,13 +109,13 @@ int main (int argc, char **argv)
 
     // initialize gpio and aio
     button = mraa_gpio_init(60);
-    if (button == 0) {
+    if (button == NULL) {
         fprintf(stderr, "Failed to initialize GPIO 60\n");
         mraa_deinit();
         return EXIT_FAILURE;
     }
     temper = mraa_aio_init(1);
-    if (temper == 0) {
+    if (temper == NULL) {
         fprintf(stderr, "Failed to initialize AIO 1\n");
         mraa_deinit();
         return EXIT_FAILURE;
@@ -149,7 +154,7 @@ int main (int argc, char **argv)
 
     }
 
-    free(buffer);
+    if (buffer != NULL) free(buffer);
     exit(0);
 
 }

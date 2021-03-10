@@ -3,7 +3,7 @@
 # EMAIL: ericliu2023@g.ucla.edu
 
 default: lab4b.c
-		if [ `uname -a | grep -c "armv71"` -ne 0 ]; then \
+		if [ `uname -a | grep -c "armv"` -ne 0 ]; then \
 		gcc -g -Wall -Wextra -lm -lmraa lab4b.c -o lab4b; \
 		else \
 		gcc -g -DDUMMY -lm lab4b.c -o lab4b; \

@@ -5,7 +5,7 @@
 #!/bin/bash
 
 ./lab4b --bogus &>/dev/null
-if [[ $? -ne 1 ]]
+if [ $? -ne 1 ]
 then
     echo "... error: invalid options"
 else
@@ -13,7 +13,7 @@ else
 fi
 
 ./lab4b --period=0 &>/dev/null
-if [[ $? -ne 1 ]]
+if [ $? -ne 1 ]
 then
     echo "... error: invalid arguments"
 else
@@ -21,7 +21,7 @@ else
 fi
 
 ./lab4b --scale=S &>/dev/null
-if [[ $? -ne 1 ]]
+if [[$? -ne 1 ]
 then
     echo "... error: invalid arguments"
 else
@@ -36,7 +36,7 @@ START
 LOG test
 OFF
 EOF
-if [[ $? -ne 0 ]]
+if [ $? -ne 0 ]
 then
     echo "... error: something wrong with commands from stdin"
 else
@@ -53,7 +53,7 @@ fi
 for c in SCALE=F PERIOD=3 START STOP OFF SHUTDOWN "LOG test"
 	do
 		grep "$c" LOG_FILE > /dev/null
-		if [[ $? -ne 0 ]]
+		if [ $? -ne 0 ]
 		then
 			echo "... error: DID NOT LOG $c command"
 		else
