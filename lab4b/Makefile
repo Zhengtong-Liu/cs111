@@ -3,7 +3,11 @@
 # EMAIL: ericliu2023@g.ucla.edu
 
 default:
-		gcc -g -Wall -Wextra -lm -lmraa lab4b.c -o lab4b
+		if [ `uname -a` has string "armv71" in it ]
+			gcc -g -Wall -Wextra -lm -lmraa lab4b.c -o lab4b
+		else
+			gcc -g -DDUMMY -Wall -Wextra -lm lab4b.c -o lab4b
+		endif
 
 clean:
 		rm -rf lab4b *.tar.gz

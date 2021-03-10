@@ -11,8 +11,42 @@
 #include <math.h>
 #include <unistd.h>
 #include <ctype.h>
+
+#ifdef DUMMY
+#define MRAA_GPIO_IN 0
+#define MRAA_GPIO_EDGE_RISING 0
+typedef int mraa_aio_context;
+typedef int mraa_gpio_context;
+
+mraa_aio_context mraa_aio_init (int p) {
+    return 0;
+}
+void mraa_deinit () {
+    
+}
+int mraa_aio_read (mraa_aio_context c) {
+    return 650;
+}
+void mraa_aio_close (mraa_aio_context c) {
+
+}
+mraa_gpio_context mraa_gpio_init (int p) {
+    return 0;
+}
+void mraa_gpio_dir (mraa_gpio_context c, int d) {
+
+}
+void mraa_gpio_close (mraa_gpio_context c) {
+
+}
+
+void mraa_gpio_isr (mraa_gpio_context c, int edge, void(*)(void *) fptr, void* arg) {
+
+}
+#else
 #include <mraa.h>
 #include <mraa/aio.h>
+#endif
 
 
 #define B 4275
