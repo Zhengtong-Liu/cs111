@@ -20,5 +20,7 @@ Files:
             create the deliverable tarball
 
 
+    test.sh ... test script for smoke tests
+    
     README ...
         this file
