@@ -456,21 +456,33 @@ void process_input_from_server(char* input)
         fprintf(stderr, "error reading from the server: %s\n", strerror(errno));
         exit(2);
     }
-    int k;
-    for (k = 0; k < ret && index < 256; k++)
+    if (ret > 0)
+        input[ret] = 0;
+    char *s = input;
+    while (s < &input[ret])
     {
-        if (input[k] == '\n')
-        {
-            process_commands((char *)& command_buffer);
-            memset(command_buffer, 0, 256);
-            index = 0;
-        }
-        else
-        {
-            command_buffer[index] = input[k];
-            index++;
-        }
+        char *e = s;
+        while (e < &input[ret] && *e != '\n')
+            e++;
+        *e = 0;
+        process_commands(s);
+        s = &e[1];
     }
+    // int k;
+    // for (k = 0; k < ret && index < 256; k++)
+    // {
+    //     if (input[k] == '\n')
+    //     {
+    //         process_commands((char *)& command_buffer);
+    //         memset(command_buffer, 0, 256);
+    //         index = 0;
+    //     }
+    //     else
+    //     {
+    //         command_buffer[index] = input[k];
+    //         index++;
+    //     }
+    // }
 }
 
 SSL_CTX* ssl_init(void)
