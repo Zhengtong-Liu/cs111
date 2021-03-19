@@ -120,7 +120,7 @@ void process_input_from_server(char* input);
 // initialize ssl
 SSL_CTX* ssl_init(void);
 // attach ssl to socket
-SSL* attach_ssl_to_socket (int socket, SST_CTX *context);
+SSL* attach_ssl_to_socket (int socket, SSL_CTX *context);
 // ssl clean client
 void ssl_clean_client (SSL* client);
 
@@ -349,7 +349,15 @@ void my_print(bool to_stdout, char* str)
 
     // print to the server if specified
     if (to_stdout)
-        dprintf(sockfd, "%s\n", str);
+    {
+        char output[256];
+        sprintf(output, "%s\n", str);
+        if (SSL_write(ssl_client, output, strlen(output)) <= 0)
+        {
+            fprintf(stderr, "the ssl write operation is not successful\n");
+            exit(2);
+        }
+    }
 }
 
 void close_and_exit ()
@@ -443,8 +451,8 @@ void process_input_from_server(char* input)
 {
     int index = 0;
     char command_buffer[256];
-    int ret = SSL_read(sockfd, input, 256);
-    if (ret < 0)
+    int ret = SSL_read(ssl_client, input, 256);
+    if (ret <= 0)
     {
         fprintf(stderr, "error reading from the server: %s\n", strerror(errno));
         exit(2);
@@ -482,7 +490,7 @@ SSL_CTX* ssl_init(void)
     return newContent;
 }
 
-SSL* attach_ssl_to_socket (int socket, SST_CTX *context)
+SSL* attach_ssl_to_socket (int socket, SSL_CTX *context)
 {
     SSL *sslClient = SSL_new(context);
     if (sslClient == NULL)
