@@ -436,15 +436,16 @@ void process_input_from_server(char* input)
     }
     if (ret > 0)
         input[ret] = 0;
-    char *s = input;
-    while (s < &input[ret])
+    char *current = input;
+    char *previous;
+    while (current < input + ret)
     {
-        char *e = s;
-        while (e < &input[ret] && *e != '\n')
-            e++;
-        *e = 0;
-        process_commands(s);
-        s = &e[1];
+        previous = current;
+        while (previous < input + ret && *previous != '\n')
+            previous++;
+        *previous = 0;
+        process_commands(current);
+        current = previous+1;
     }
     // int k;
     // for (k = 0; k < ret && index < 256; k++)
