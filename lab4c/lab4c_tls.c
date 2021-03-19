@@ -349,7 +349,7 @@ void my_print(bool to_stdout, char* str)
 
     // print to the server if specified
     if (to_stdout)
-        fprintf(sockfd, "%s\n", str);
+        dprintf(sockfd, "%s\n", str);
 }
 
 void close_and_exit ()
@@ -449,7 +449,8 @@ void process_input_from_server(char* input)
         fprintf(stderr, "error reading from the server: %s\n", strerror(errno));
         exit(2);
     }
-    for (int k = 0; k < ret && index < 256; k++)
+    int k;
+    for (k = 0; k < ret && index < 256; k++)
     {
         if (input[k] == '\n')
         {
