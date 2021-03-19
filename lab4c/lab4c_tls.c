@@ -181,7 +181,7 @@ int main (int argc, char **argv)
             fprintf(stderr, "error when polling: %s\n", strerror(errno));
             exit(2);
         }
-        if (pollStdin.revents && POLLIN)
+        if (ret > 0)
             process_input_from_server(buffer);
     }
 
@@ -368,7 +368,6 @@ void close_and_exit ()
 void process_commands (char* buffer)
 {
     // first process the input
-    buffer[strlen(buffer) - 1] = '\0';
     while (*buffer == '\t' || *buffer == ' ')
         buffer++;
     
