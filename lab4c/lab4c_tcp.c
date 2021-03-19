@@ -445,7 +445,7 @@ void process_input_from_server(char* input)
             previous++;
         *previous = 0;
         process_commands(current);
-        current = previous+1;
+        current = previous + 1;
     }
     // int k;
     // for (k = 0; k < ret && index < 256; k++)
