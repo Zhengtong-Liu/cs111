@@ -478,7 +478,7 @@ SSL_CTX* ssl_init(void)
 {
     SSL_CTX *newContent = NULL;
     SSL_library_init();
-    SSL_load_eror_strings();
+    SSL_load_error_strings();
     OpenSSL_add_all_algorithms();
 
     newContent = SSL_CTX_new(TLSv1_client_method());

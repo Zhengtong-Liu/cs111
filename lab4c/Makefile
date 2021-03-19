@@ -13,9 +13,9 @@ lab4c_tcp: lab4c_tcp.c
 
 lab4c_tls: lab4c_tls.c
 		if [ `uname -a | grep -c "armv"` -ne 0 ]; then \
-		gcc -g -Wall -Wextra -lm -lmraa lab4c_tls.c -o lab4c_tls; \
+		gcc -g -Wall -Wextra -lcrypto -lssl -lm -lmraa lab4c_tls.c -o lab4c_tls; \
 		else \
-		gcc -g -DDUMMY -lm lab4c_tls.c -o lab4c_tls; \
+		gcc -g -DDUMMY -lcrypto -lssl -lm lab4c_tls.c -o lab4c_tls; \
 		fi
 
 clean:
